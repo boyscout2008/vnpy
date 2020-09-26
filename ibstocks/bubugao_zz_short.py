@@ -42,10 +42,9 @@ class BubugaoZZ_short(CtaTemplate):
     median_start = 1
     zz_count = 0
     zz_1_high = 0.0
-    is_data_aligned = True
 
     parameters = ["zz_count_max", "above_zz_1", "duobeili_threshold", "init_long_pos", "cover_before_close", "last_15mins_bar_index", "backtest_flag"]
-    variables = ["median_start", "zz_count", "zz_1_high", "is_data_aligned"]
+    variables = ["median_start", "zz_count", "zz_1_high"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
         """"""
@@ -98,6 +97,9 @@ class BubugaoZZ_short(CtaTemplate):
         #self.cancel_all()
         #am = self.am
         #am.update_bar(bar)
+        if self.inited:
+            self.write_log("API_STABILITY_MONITOR: %f, %d, num_bar = %d"%(bar.close_price, bar.volume, num_bar))
+
         cur_dt = bar.datetime.date()
 
         #TODOs: get cur_bar 391 using history interface once network breakup or startup among trading
@@ -105,15 +107,12 @@ class BubugaoZZ_short(CtaTemplate):
         df_bar = pd.DataFrame({'datetime':[bar.datetime], 'open':[bar.open_price], \
             'high':[bar.high_price], 'low':[bar.low_price], 'close':[bar.close_price], 'volume':[bar.volume]})
 
-        #TODO: 检测数据完整性，若缺失，重启策略，通过load_bar初始化来获取完成bar数据
         self.bars = self.bars.append(df_bar, ignore_index=True)
 
         mk = self.bars.set_index('datetime')
         mk = mk[mk.index.date==cur_dt]
 
         num_bar = len(mk)
-
-        self.write_log("API stability testing: %f, %f, %d"%(bar.close_price, bar.volume, num_bar))
 
         # 回测设置：早盘固定时间开仓，滞涨止盈回测用
         if self.backtest_flag and num_bar == 15:

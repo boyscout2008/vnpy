@@ -10,7 +10,7 @@ def restart_program():
 
 # 美股交易时段09：30~16：00
 DAY_START_USSTOCK = time(9, 25)
-DAY_END_USSTOCK = time(16, 5)
+DAY_END_USSTOCK = time(16, 0)
 # 纽约外汇交易时段# 24小时
 def check_trading_period_usstock():
     utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
@@ -39,6 +39,46 @@ def check_trading_period_future_china():
         trading = True
 
     return trading
+
+# 返回bar时间跟当前时间时间差（seconds）
+def diff_time(bar_time):
+    utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
+    md_dt = utc_dt.astimezone(timezone(timedelta(hours=-4))).strftime("%Y-%m-%d %H:%M")
+    cur_time = datetime.strptime(md_dt, "%Y-%m-%d %H:%M")
+    return (cur_time -bar_time).seconds
+
+#返回log文件中最后一根bar和当前时间的时间差（seconds）
+def last_bar_time_diff(log_file_path):
+    time_diff = -1
+    if not os.path.exists(log_file_path):
+        return time_diff
+
+    log_file = open(log_file_path, 'rb')
+    if not log_file:
+        return time_diff
+
+    if os.path.getsize(log_file_path) > 3000:
+        log_file.seek(-2000,2)
+
+    lines = log_file.readlines()[1:]
+    print(len(lines))
+
+    for i in range(0, lines.__len__())[::-1]:
+        #print(lines[i])
+        line = str(lines[i], encoding = "utf8")
+        if 'API_STABILITY_MONITOR' in line:
+            # check datetime
+            utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
+            md_dt = utc_dt.astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+            cur_time = datetime.strptime(md_dt, "%Y-%m-%d %H:%M:%S")
+
+            bar_time = line.split('INFO')[0].strip().split(',')[0]
+            bar_time = datetime.strptime(bar_time, "%Y-%m-%d %H:%M:%S")
+            time_diff = (cur_time - bar_time).seconds
+            #print(cur_time, bar_time)
+            break
+    log_file.close()
+    return time_diff
 
 #--------------------------vn trading setting-------------------------
 # https://www.vnpy.com/docs/cn/gateway.html

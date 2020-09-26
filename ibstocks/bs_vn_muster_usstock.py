@@ -62,7 +62,7 @@ def run_child():
 
     sleep(10)
 
-    # TODO-02: 订阅行情
+    # 订阅行情(IB必须手动订阅)
     req1 = SubscribeRequest("120549942",Exchange.SMART) #创建行情订阅
     #req1 = SubscribeRequest("12087792",Exchange.IDEALPRO) #创建行情订阅
     main_engine.subscribe(req1,"IB")
@@ -98,13 +98,32 @@ def run_child():
     # main_engine.write_log("CTA策略全部启动")
 
     print("正在交易中...")
+    
+    # get log file path
+    today_date = datetime.now().strftime("%Y%m%d")
+    filename = f"vt_{today_date}.log"
+    log_path = "c://Users/jason/.vntrader/log/" #get_folder_path("log")
+    log_file_path = os.path.join(log_path, filename)
 
     while True:
         sleep(10)
-
         trading = bs.check_trading_period_usstock()
+
         if not trading:
             print("关闭子进程")
+            main_engine.close()
+            sys.exit(0)
+
+        # 检测bar时间是否有异常：> 60+20s 重启
+        time_diff = bs.last_bar_time_diff(log_file_path)
+
+        #TODO：支持有短暂休市的市场  
+        if time_diff > 80:
+            print("数据异常，重启子进程 。。。")
+            if time_diff > 120:
+                #TODO: 报警
+                print("数据异常，重启无法修复，检测TWS状况 。。。")
+
             main_engine.close()
             sys.exit(0)
 
@@ -120,11 +139,18 @@ def run_parent():
         trading = bs.check_trading_period_usstock()
 
         # Start child process in trading period
-        if trading and child_process is None:
-            print("启动子进程")
-            child_process = multiprocessing.Process(target=run_child)
-            child_process.start()
-            print("子进程启动成功")
+        if trading:
+            if child_process is None:
+                print("启动子进程")
+                child_process = multiprocessing.Process(target=run_child)
+                child_process.start()
+                print("子进程启动成功")
+            else:
+                if not child_process.is_alive():
+                    child_process.terminate()
+                    child_process =  multiprocessing.Process(target=run_child)
+                    child_process.start()
+                    print("子进程重启成功")
 
         # 非记录时间则退出子进程
         if not trading and child_process is not None:
