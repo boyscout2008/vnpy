@@ -4,6 +4,7 @@ import os
 
 SOUND_WARNING_LOST = "c://proj-futures/vnpy/ibstocks/warning_lost.wav" # 30s
 SOUND_NOTICE_ORDER = "c://proj-futures/vnpy/ibstocks/notice_order.wav" # 5~10s
+SOUND_MANUAL_INTERUPT = "c://proj-futures/vnpy/ibstocks/manual_interupt.wav" # 10~20s
 
 #---------------------------functions---------------------------------
 # 自动重启本程序

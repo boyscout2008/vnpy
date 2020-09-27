@@ -44,9 +44,10 @@ class BubugaoZZ_short(CtaTemplate):
     median_start = 1
     zz_count = 0
     zz_1_high = 0.0
+    partial_pos_count = 0
 
     parameters = ["zz_count_max", "above_zz_1", "duobeili_threshold", "init_long_pos", "cover_before_close", "last_15mins_bar_index", "backtest_flag"]
-    variables = ["median_start", "zz_count", "zz_1_high"]
+    variables = ["median_start", "zz_count", "zz_1_high", "partial_pos_count"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
         """"""
@@ -121,6 +122,15 @@ class BubugaoZZ_short(CtaTemplate):
             self.buy(mk["close"][-1], 1, True)
             self.write_log("simulated buy at price %.2f for backtesting zz"%(mk["close"][-1]))
 
+        # 市价单3分钟只是部分成交则提醒人工干预
+        if self.pos < 0 and self.pos != -self.init_long_pos:
+            self.partial_pos_count += 1
+            if self.partial_pos_count > 3:
+                self.write_log("市价单3分钟未成交，提醒人工介入!")
+                winsound.PlaySound(bs.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
+        else:
+            self.partial_pos_count = 0
+
         # 尾盘强制平仓
         if num_bar >= self.last_15mins_bar_index and self.cover_before_close:
             if self.pos != -self.init_long_pos and self.init_long_pos > 0:
@@ -129,7 +139,7 @@ class BubugaoZZ_short(CtaTemplate):
                 assert(cur_stop_pos > 0)
                 self.sell(mk["close"][-1], cur_stop_pos, True)
                 self.write_log("weipan pingcang %d at price %.2f"%(cur_stop_pos, mk["close"][-1]))
-                winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
+                #winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
             return
         
         mk = mk.assign(vwap = ((mk["volume"]*mk["close"]).cumsum() / mk["volume"].cumsum()).ffill())
@@ -145,8 +155,9 @@ class BubugaoZZ_short(CtaTemplate):
                 self.write_log("ZZ %d times from %d, close long at %d with price: %.2f above zz_1_high: %.2f" \
                     %(self.zz_count, self.median_start, num_bar, mk["close"][-1], self.zz_1_high))
                 if self.pos == 0 and self.init_long_pos > 0:
+                    self.cancel_all()
                     self.sell(mk["close"][-1], abs(self.init_long_pos), True)
-                    winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
+                    #winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
                 self.zz_count= self.zz_count_max + 1 #disable zz modes
 
             if num_bar - self.median_start > 30:
@@ -158,19 +169,23 @@ class BubugaoZZ_short(CtaTemplate):
                         if self.zz_count == 1:
                             self.zz_1_high = median_CH
                         #case1&2: close long while zz 1 or 2 times
-                        if self.zz_count == self.zz_count_max and (self.above_zz_1 > -0.00001 and self.above_zz_1 < 0.00001):
-                            self.write_log("ZZ %d times from %d, pingcang at %d with price %.2f"%(self.zz_count, self.median_start, num_bar, mk["close"][-1]))
-                            if self.pos == 0 and self.init_long_pos > 0:
+                        if self.zz_count >= self.zz_count_max and (self.above_zz_1 > -0.00001 and self.above_zz_1 < 0.00001):
+                            self.write_log("ZZ %d times from %d, suggest PC at %d with price %.2f"%(self.zz_count, self.median_start, num_bar, mk["close"][-1]))
+                            if self.pos == 0 and self.init_long_pos > 0 \
+                                and mk["close"][-1] > (mk["vwap"][-1] + (median_CH - mk["vwap"][-1])*0.5):
+                                self.cancel_all()
                                 self.sell(mk["close"][-1], abs(self.init_long_pos), True)
-                                winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
+                                #winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
                     elif len(median_h_zz) > 30:
                         #The backup logic for unexpected network breakup while len(median_h_zz) == 30, which lasts for 30 minutes,
                         #Meanwhile it's used for sell with limit price.
                         #case1&2: close long while zz 1 or 2 times
-                        if self.zz_count == self.zz_count_max and (self.above_zz_1 > -0.00001 and self.above_zz_1 < 0.00001):
-                            if self.pos == 0 and self.init_long_pos > 0:
+                        if self.zz_count >= self.zz_count_max and (self.above_zz_1 > -0.00001 and self.above_zz_1 < 0.00001):
+                            if self.pos == 0 and self.init_long_pos > 0 \
+                                and mk["close"][-1] > (mk["vwap"][-1] + (median_CH - mk["vwap"][-1])*0.5):
+                                self.cancel_all()
                                 self.sell(mk["close"][-1], abs(self.init_long_pos), True)
-                                winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
+                                #winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
         
     def on_order(self, order: OrderData):
         """
