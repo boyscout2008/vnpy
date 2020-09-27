@@ -25,6 +25,8 @@ from vnpy.app.cta_strategy import (
 import pandas as pd
 import operator
 from time import time
+import winsound
+import bs_vn_base as bs
 
 #partial bubugao strategy with close fuction while zhizhang
 class BubugaoZZ_short(CtaTemplate):
@@ -121,10 +123,13 @@ class BubugaoZZ_short(CtaTemplate):
 
         # 尾盘强制平仓
         if num_bar >= self.last_15mins_bar_index and self.cover_before_close:
-            if self.pos == 0 and self.init_long_pos > 0:
-                #self.cancel_all() # 取消未成交订单，重新下单
-                self.sell(mk["close"][-1], abs(self.init_long_pos), True)
-                self.write_log("weipan pingcang %d at price %.2f"%(self.pos, mk["close"][-1]))
+            if self.pos != -self.init_long_pos and self.init_long_pos > 0:
+                self.cancel_all() # 取消未成交订单，重新下单
+                cur_stop_pos = self.init_long_pos + self.pos
+                assert(cur_stop_pos > 0)
+                self.sell(mk["close"][-1], cur_stop_pos, True)
+                self.write_log("weipan pingcang %d at price %.2f"%(cur_stop_pos, mk["close"][-1]))
+                winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
             return
         
         mk = mk.assign(vwap = ((mk["volume"]*mk["close"]).cumsum() / mk["volume"].cumsum()).ffill())
@@ -141,6 +146,7 @@ class BubugaoZZ_short(CtaTemplate):
                     %(self.zz_count, self.median_start, num_bar, mk["close"][-1], self.zz_1_high))
                 if self.pos == 0 and self.init_long_pos > 0:
                     self.sell(mk["close"][-1], abs(self.init_long_pos), True)
+                    winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
                 self.zz_count= self.zz_count_max + 1 #disable zz modes
 
             if num_bar - self.median_start > 30:
@@ -156,6 +162,7 @@ class BubugaoZZ_short(CtaTemplate):
                             self.write_log("ZZ %d times from %d, pingcang at %d with price %.2f"%(self.zz_count, self.median_start, num_bar, mk["close"][-1]))
                             if self.pos == 0 and self.init_long_pos > 0:
                                 self.sell(mk["close"][-1], abs(self.init_long_pos), True)
+                                winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
                     elif len(median_h_zz) > 30:
                         #The backup logic for unexpected network breakup while len(median_h_zz) == 30, which lasts for 30 minutes,
                         #Meanwhile it's used for sell with limit price.
@@ -163,6 +170,7 @@ class BubugaoZZ_short(CtaTemplate):
                         if self.zz_count == self.zz_count_max and (self.above_zz_1 > -0.00001 and self.above_zz_1 < 0.00001):
                             if self.pos == 0 and self.init_long_pos > 0:
                                 self.sell(mk["close"][-1], abs(self.init_long_pos), True)
+                                winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
         
     def on_order(self, order: OrderData):
         """

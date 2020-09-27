@@ -2,6 +2,9 @@ from datetime import datetime, time, timedelta, timezone
 import sys
 import os
 
+SOUND_WARNING_LOST = "c://proj-futures/vnpy/ibstocks/warning_lost.wav" # 30s
+SOUND_NOTICE_ORDER = "c://proj-futures/vnpy/ibstocks/notice_order.wav" # 5~10s
+
 #---------------------------functions---------------------------------
 # 自动重启本程序
 def restart_program():
@@ -58,18 +61,18 @@ def last_bar_time_diff(log_file_path):
         return time_diff
 
     if os.path.getsize(log_file_path) > 3000:
-        log_file.seek(-2000,2)
+        log_file.seek(-3000,2)
 
     lines = log_file.readlines()[1:]
-    print(len(lines))
 
     for i in range(0, lines.__len__())[::-1]:
         #print(lines[i])
         line = str(lines[i], encoding = "utf8")
         if 'API_STABILITY_MONITOR' in line:
             # check datetime
-            utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
-            md_dt = utc_dt.astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+            #utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
+            #md_dt = utc_dt.astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
+            md_dt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             cur_time = datetime.strptime(md_dt, "%Y-%m-%d %H:%M:%S")
 
             bar_time = line.split('INFO')[0].strip().split(',')[0]

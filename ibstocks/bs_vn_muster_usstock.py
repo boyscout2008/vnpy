@@ -18,6 +18,7 @@ from vnpy.app.cta_strategy.base import EVENT_CTA_LOG
 from vnpy.trader.constant import Exchange
 from vnpy.trader.object import SubscribeRequest
 
+import winsound
 import bs_vn_base as bs
 
 SETTINGS["log.active"] = True
@@ -98,13 +99,14 @@ def run_child():
     # main_engine.write_log("CTA策略全部启动")
 
     print("正在交易中...")
-    
+
     # get log file path
     today_date = datetime.now().strftime("%Y%m%d")
     filename = f"vt_{today_date}.log"
     log_path = "c://Users/jason/.vntrader/log/" #get_folder_path("log")
     log_file_path = os.path.join(log_path, filename)
 
+    no_bar_count = 0
     while True:
         sleep(10)
         trading = bs.check_trading_period_usstock()
@@ -117,15 +119,24 @@ def run_child():
         # 检测bar时间是否有异常：> 60+20s 重启
         time_diff = bs.last_bar_time_diff(log_file_path)
 
-        #TODO：支持有短暂休市的市场  
-        if time_diff > 80:
-            print("数据异常，重启子进程 。。。")
-            if time_diff > 120:
-                #TODO: 报警
-                print("数据异常，重启无法修复，检测TWS状况 。。。")
+        #TODO：支持有短暂休市的市场
+        if time_diff == -1:
+            no_bar_count += 1
+            if no_bar_count > 6: #60s
+                today_hour = datetime.now().strftime("%H")
+                if today_hour >= 22 or today_hour < 4:
+                    print("log文件异常；或盘中重启后一直无bar数据，检测TWS及网络状况 。。。")
+                    winsound.PlaySound(bs.SOUND_WARNING_LOST, winsound.SND_FILENAME)
+        else:
+            no_bar_count = 0
+            if time_diff > 80:
+                print("数据异常，重启子进程 。。。")
+                if time_diff > 120:
+                    print("数据异常，重启无法修复，检测TWS及网络状况 。。。")
+                    winsound.PlaySound(bs.SOUND_WARNING_LOST, winsound.SND_FILENAME) 
 
-            main_engine.close()
-            sys.exit(0)
+                main_engine.close()
+                sys.exit(0)
 
 def run_parent():
     """
