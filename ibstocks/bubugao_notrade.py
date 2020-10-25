@@ -73,9 +73,9 @@ class BubugaoSignal(CtaTemplate):
     #0：初始化状态，无多空信号； 2: bubugao_mode2； 2<<1: 多转滞涨
     #3: bubugao_mode3a_10min; 3<<2: bubugao_mode3a_30min; 3<<3: bubugao_mode3a_zhizhang
     #-1：背离空破相，偏空趋势；-1<<1: 空止跌（结合30k，潜在买点）
-    trending = 0
     # internal
     #bar_30m = []
+    strategies = {}
     first20_low = 0.0
     yestoday_close = 0.0 
     isready_zd_duo = False
@@ -159,12 +159,13 @@ class BubugaoSignal(CtaTemplate):
 
         # 尾盘强制平仓
         if num_bar == self.last_15mins_bar_index and self.cover_before_close:
-            res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
             if self.long_avg_price > 0.1 and self.sh:
-                self.sh.write("%s: weipan_pingcang with profit %d at price %.2f\n"%(mk.index[-1], res, mk["close"][-1]))
+                res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
+                self.sh.write("%s: weipan_pingcang with profit %.1f at price %.2f\n"%(mk.index[-1], res, mk["close"][-1]))
                 self.sh.close()
                 self.sh = None
             self.long_avg_price = 0.0
+            self.strategies.clear()
                 #winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
             return
 
@@ -177,7 +178,7 @@ class BubugaoSignal(CtaTemplate):
             self.zz_1_high = 0.0
 
         day_CH_index, day_CH = max(enumerate(mk["close"]), key=operator.itemgetter(1))
-        # 早盘：2a|3a|4a|4b
+        # 早盘：2a|3a|4a|4b - 四种模式具有互斥性，最多执行一种策略
         if num_bar >= 15 and num_bar <= 30:
             if num_bar <= 20:
                 self.first20_low = mk["close"].min()
@@ -188,54 +189,65 @@ class BubugaoSignal(CtaTemplate):
                     and day_CH < mk["close"].min()*self.zy_threshold and mk["close"][3:].min() > self.yestoday_close*0.992:
                     #self.trending = 2
                     self.long_avg_price = mk["close"][-1]
+                    self.strategies['2a'] = mk["close"][-1]
                     if self.sh:
                         self.sh.write("%s: SIGNAL_mode2a_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         self.sh.write("Double check whether it's zuliwei or not, like last day's high or recent high.\n")
                     #self.write_log("SIGNAL_buy_bubugao_mode2_2145 at price %.2f"%(mk["close"][-1]))
                 # Signal：mode_4b
-                elif mk["close"][0] < self.yestoday_close * 0.985 \
-                    and (mk["close"][3:] >= mk["vwap"][3:]).all() and mk["close"][-1] > mk["close"][0]*self.duobeili_threshold:
+                elif mk["close"][0] < self.yestoday_close * 0.992 \
+                    and (mk["close"][3:] >= mk["vwap"][3:]).all() and day_CH > mk["close"][0]*self.duobeili_threshold and day_CH > self.yestoday_close:
                     self.long_avg_price = mk["close"][-1]
+                    self.strategies['4b'] = mk["close"][-1]
                     if self.sh:
                         self.sh.write("%s: SIGNAL_mode4b_dikai_pianduo_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         self.sh.write("Double check whether duanxian pianduo or not, buy after 22:05 is another good choice!\n")
 
-            # Signal：mode_3a
+            # Signal：mode_3a_0
             # 小高偏多信号 + 小空局部止跌10分钟 + 最低点约高于昨日收盘
             if  mk["close"][:5].max() > mk["close"][0]*1.004 and mk["close"].min() > self.first20_low*0.99 \
                 and mk["close"].min() < mk["close"][0]*0.991 \
                 and (mk['close'][-10:] < mk["close"][:-10].max()).all() and mk['close'][-1] >= mk["close"][day_CH_index:-10].min() \
                 and (mk['close'][-10:] >= mk["close"][day_CH_index:-10].min()*0.998).all() and mk["close"].min() > self.yestoday_close*0.998:
                 self.long_avg_price = mk["close"][-1]
+                self.strategies['3a_0'] = mk["close"][-1]
                 if self.sh:
                     self.sh.write("%s: SIGNAL_mode3a_xiaodi_10mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-            # Signal：mode_4a
+                    if '2a' in self.strategies:
+                        self.sh.write("WARNING: zhuan_kong_jubu_zhidie_3a after xiaoduo_2a, had better ignore the 3a signal!\n")
+            # Signal：mode_4a_0
             # 早盘小空止跌转震荡多 - 小空 + 相对低位11mins止跌 + 破相
             elif mk["close"].min() < mk["close"][0]*0.975 and mk["close"].min() < self.yestoday_close*0.985 \
                 and (mk['close'][-11:] > mk["close"][:-11].min()*0.998).all() and day_CH < mk["close"][0]*self.duobeili_threshold \
                 and mk['close'][-11:].max() < mk["close"].min() + (day_CH - mk["close"].min())*0.3:
                 self.xiankong_zd_duo = True
                 self.long_avg_price = mk["close"][-1]
+                self.strategies['4a_0'] = mk["close"][-1]
                 if self.sh:
                     self.sh.write("%s: SIGNAL_mode4a_kong_10mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))              
 
         #盘中：开仓-2b;3a,3b,3c;4a; 止损-定点和破相反弹止损；止盈-一波多或两波多滞涨止盈
         elif num_bar > 30:
             pre30m_CH_index, pre30m_CH = max(enumerate(mk["close"][:30]), key=operator.itemgetter(1))
-
-            # Signal：mode_3a
+            # Signal：mode_3a_1
             # 偏多信号之后，小空 + 相对低位明确止跌 + 且不破相（不有效破开盘20分钟内的低点）
             if num_bar < 45 and mk["close"][:5].max() > mk["close"][0]*1.004 \
                 and mk["close"].min() > self.first20_low*0.99 \
                 and mk["close"].min() < mk["close"][0]*0.991 \
                 and (mk['close'][-30:] < mk["close"][:-30].max()).all() \
                 and (mk['close'][-30:] > mk["close"][day_CH_index:-30].min()*0.998).all() and mk["close"].min() >= self.yestoday_close*0.998:
-                if self.long_avg_price < 0.1:
-                    self.long_avg_price = mk["close"][-1]
+                if '3a_1' in self.strategies:
+                    pass
                 else:
-                    self.long_avg_price = (self.long_avg_price + mk["close"][-1])/2
-                if self.sh:
-                    self.sh.write("%s: SIGNAL_mode3a_xiaodi_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                    self.strategies['3a_1'] = mk["close"][-1]
+                    if self.long_avg_price < 0.1:
+                        self.long_avg_price = mk["close"][-1]
+                    else:
+                        self.long_avg_price = sum(self.strategies.values())/len(self.strategies)
+                    if self.sh:
+                        self.sh.write("%s: SIGNAL_mode3a_1_xiaodi_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                        if '3a' in self.strategies:
+                            self.sh.write("NOTE: mode_3a_1 after mode_3a, ignore it if necessary!\n")
             #TODOs: 加一个基础判断，30k 高于均线
             elif num_bar>=45 and num_bar<145: # 22:15~23:55
                 mk_30 = mk[-30:]
@@ -249,46 +261,60 @@ class BubugaoSignal(CtaTemplate):
                     and (mk['close'][-30:] < day_CH*0.993).all() \
                     and (len(mk_30[mk_30['close'] > mk_30['vwap']*0.998])>25 or (mk['close'][-30:] < (mk["close"][day_CH_index:-30].min() + day_CH)/2).all()):
                     # solve confict between 3a and yiboduo_zz using pianduo_tiaozheng
-                    if self.long_avg_price < 0.1:
-                        self.long_avg_price = mk["close"][-1]
+                    if '3b' in self.strategies:
+                        pass
                     else:
-                        self.long_avg_price = (self.long_avg_price + mk["close"][-1])/2
+                        self.strategies['3b'] = mk["close"][-1]
+                        if self.long_avg_price < 0.1:
+                            self.long_avg_price = mk["close"][-1]
+                        else:
+                            self.long_avg_price = sum(self.strategies.values())/len(self.strategies)
 
-                    if (mk_30['close'] > mk_30['vwap']).all():
-                        self.pianduo_tiaozheng = True
+                        if (mk_30['close'] > mk_30['vwap']).all():
+                            self.pianduo_tiaozheng = True
 
-                    if self.sh:
-                        self.sh.write("%s: SIGNAL_mode3b_duotiaozheng_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                        self.sh.write("Double check whether it's weizhi zhendang_duo and already above zhongyang or it. if so, just zhiying.\n")
+                        if self.sh:
+                            self.sh.write("%s: SIGNAL_mode3b_duotiaozheng_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                            self.sh.write("Double check whether it's weizhi zhendang_duo and already above zhongyang or it. if so, just zhiying.\n")
                 # Signal：mode_2b
                 # 介入3b和2a之间，震荡小多，站稳分时不满足2a，涨幅不满足3b：15分钟之后的突破多 + 突破幅度不大+走稳15分钟开始做多
                 elif num_bar < 120 and pre30m_CH*1.002 <  day_CH and day_CH_index - pre30m_CH_index > 15 \
-                    and (mk['close'][-30:] > self.yestoday_close).all() and mk['close'][:30].max() < h['close'].min()*self.zy_threshold \
+                    and (mk['close'][-30:] > self.yestoday_close).all() and mk['close'][:30].max() < mk['close'].min()*self.zy_threshold \
                     and (mk['close'][-5:] >= mk['vwap'][-5:]).all() and (mk['close'][-10:] < day_CH).all() \
                     and num_bar - day_CH_index < 20 and len(mk[mk['close'] > mk['vwap']*0.998]) > num_bar - 12:
-                    if self.long_avg_price < 0.1:
-                        self.long_avg_price = mk["close"][-1]
+                    if '2b' in self.strategies:
+                        pass
                     else:
-                        self.long_avg_price = (self.long_avg_price + mk["close"][-1])/2
-                    if self.sh:
-                        self.sh.write("%s: SIGNAL_mode2b_zhendang_duo_tupo_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                        self.sh.write("Double check whether it's 2a already; if so, no more buy.\n")
-
-            # Signal：mode_4a
+                        self.strategies['2b'] = mk["close"][-1]
+                        if self.long_avg_price < 0.1:
+                            self.long_avg_price = mk["close"][-1]
+                        else:
+                            self.long_avg_price = sum(self.strategies.values())/len(self.strategies)
+                        if self.sh:
+                            self.sh.write("%s: SIGNAL_mode2b_zhendang_duo_tupo_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                            self.sh.write("Double check whether it's 2a already; if so, no more buy.\n")
+                            if '2a' in self.strategies or '3b' in self.strategies:
+                                self.sh.write("NOTE: mode_2b after mode_2a or mode_3b, ignore it if necessary!\n")
+            # Signal：mode_4a_1
             # 空止跌做震荡多或反弹
             if num_bar < 185 and mk["close"].min() < mk["close"][0]*0.985 and mk["close"].min() < self.yestoday_close*0.985 \
                 and (mk['close'][-30:] > mk["close"][day_CH_index:-30].min()*0.998).all() and mk['close'][-1] < mk["close"][0] \
                 and mk['close'][-30:].max() < mk["close"].min() + (day_CH_index - mk["close"].min())*0.45 \
                 and day_CH < mk["close"][0]*1.015:
                 self.xiankong_zd_duo = True
-                if self.long_avg_price < 0.1:
-                    self.long_avg_price = mk["close"][-1]
+                if '4a_1' in self.strategies:
+                    pass
                 else:
-                    self.long_avg_price = (self.long_avg_price + mk["close"][-1])/2
-                if self.sh:
-                    self.sh.write("%s: SIGNAL_mode4a_kong_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                    self.sh.write("Double check whether it's confirming zhicheng or it. if so, after 23:00 and second kong is a good choice for long.\n")
-
+                    self.strategies['4a_1'] = mk["close"][-1]
+                    if self.long_avg_price < 0.1:
+                        self.long_avg_price = mk["close"][-1]
+                    else:
+                        self.long_avg_price = sum(self.strategies.values())/len(self.strategies)
+                    if self.sh:
+                        self.sh.write("%s: SIGNAL_mode4a_1_kong_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                        self.sh.write("Double check whether it's confirming zhicheng or it. if so, after 23:00 and second kong is a good choice for long.\n")
+                        if '4a' in self.strategies:
+                            self.sh.write("WARNING: mode_4a_1 after mode_4a, ignore it if necessary!\n")
             # Signal：mode_3c
             # 盘中相对低位止跌做多
             if num_bar>=120 and num_bar<230:#23：30~13：20
@@ -297,13 +323,17 @@ class BubugaoSignal(CtaTemplate):
                     and len(mk[mk["close"] > self.first20_low*0.99])> num_bar-3 and mk["close"].min() > self.yestoday_close*0.995 \
                     and (mk['close'][-30:] >= mk["close"][day_CH_index:-30].min()*0.998).all() \
                     and mk['close'][-30:].max() < (mk["close"][day_CH_index:-30:].min() + day_CH)/2:
-                    if self.long_avg_price < 0.1:
-                        self.long_avg_price = mk["close"][-1]
+                    if '3c' in self.strategies:
+                        pass
                     else:
-                        self.long_avg_price = (self.long_avg_price + mk["close"][-1])/2
-                    if self.sh:
-                        self.sh.write("%s: SIGNAL_mode3c_xingduidi_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                        self.sh.write("Double check 30k is above MA.\n")
+                        self.strategies['3c'] = mk["close"][-1]
+                        if self.long_avg_price < 0.1:
+                            self.long_avg_price = mk["close"][-1]
+                        else:
+                            self.long_avg_price = sum(self.strategies.values())/len(self.strategies)
+                        if self.sh:
+                            self.sh.write("%s: SIGNAL_mode3c_xingduidi_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                            self.sh.write("Double check 30k is above MA.\n")
 
             # Signal：zhishun
             # 13：45~13:55定点止损

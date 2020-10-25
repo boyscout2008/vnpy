@@ -229,8 +229,8 @@ def handle_data(context, data):
                     print("mode2a_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent))
                     print("double check whether it's zuliwei or not, like last day's high or recent high")
                 #步步高4.b：低开主多
-                elif mk["price"][0] < h['price'][-num_bar - 1] * 0.985 \
-                    and (mk["price"][3:] >= mk["vwap"][3:]).all() and mk["price"][-1] > mk["price"][0]*1.015:
+                elif mk["price"][0] < h['price'][-num_bar - 1] * 0.992 \
+                    and (mk["price"][3:] >= mk["vwap"][3:]).all() and day_CH > mk["price"][0]*1.015 and  day_CH > h['price'][-num_bar - 1]):
                         order(stock, 1)
                         context.cc_avg_price = mk["price"][-1]
                         print("mode4b_dikai_pianduo_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent))
