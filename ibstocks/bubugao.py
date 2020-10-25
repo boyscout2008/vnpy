@@ -45,6 +45,13 @@ class BubugaoZZ(CtaTemplate):
     zz_1_high = 0.0
     partial_pos_count = 0
     actual_long_pos = 0
+    #盘中相对低位止跌做多参数
+    pre_close = 0.0
+    yestoday_close = 0.0 
+    isready_zd_duo = False
+    first20_low = 0.0
+    
+
 
 
     parameters = ["zz_count_max", "above_zz_1", "duobeili_threshold", "dst_long_pos", "cover_before_close", "last_15mins_bar_index", "zy_threshold"]
@@ -101,9 +108,6 @@ class BubugaoZZ(CtaTemplate):
         #self.cancel_all()
         #am = self.am
         #am.update_bar(bar)
-        if self.inited:
-            self.write_log("API_STABILITY_MONITOR: %f, %d, num_bar = %d"%(bar.close_price, bar.volume, num_bar))
-
         cur_dt = bar.datetime.date()
 
         #TODOs: get cur_bar 391 using history interface once network breakup or startup among trading
@@ -118,12 +122,19 @@ class BubugaoZZ(CtaTemplate):
 
         num_bar = len(mk)
 
+        if self.inited:
+            self.write_log("API_STABILITY_MONITOR: %f, %d, num_bar = %d"%(bar.close_price, bar.volume, num_bar))
+
+        if num_bar == 1:
+            self.yestoday_close = self.pre_close
+        self.pre_close = mk["close"][-1]
+
         # 尾盘强制平仓
         if num_bar >= self.last_15mins_bar_index and self.cover_before_close:
             if self.pos > 0:
                 self.cancel_all() # 取消未成交订单，重新下单
                 self.sell(mk["close"][-1], self.pos, True)
-                self.write_log("weipan pingcang %d at price %.2f"%(cur_stop_pos, mk["close"][-1]))
+                self.write_log("weipan pingcang %d at price %.2f"%(self.pos, mk["close"][-1]))
                 #winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
             return
 
@@ -136,23 +147,60 @@ class BubugaoZZ(CtaTemplate):
 
         # 步步高策略1： 21:45偏多走稳追涨
         #TODO：步步高策略2：相对低位止跌做多
-        if num_bar >= 15 and num_bar < 30:
-            if self.pos < self.dst_long_pos and (mk["price"][5:] >= mk["vwap"][5:]).all() and mk["price"].max() < mk["price"].min()*self.zy_threshold:
+        if num_bar >= 15 and num_bar <= 30:
+            if num_bar == 20:
+                self.first20_low = mk["close"].min()
+
+            # 步步高：case2
+            if self.pos < self.dst_long_pos and (mk["close"][5:] >= mk["vwap"][5:]).all() and mk["close"].max() < mk["price"].min()*self.zy_threshold:
                 self.cancel_all()
                 self.buy(mk["close"][-1], self.dst_long_pos - self.pos, True)
-                self.write_log("kaicang_zz_2145 at price %.2f"%(mk["close"][-1]))
-        elif num_bar == 30:
-            self.cancel_all()
-            self.actual_long_pos = self.pos
+                self.write_log("kaicang_long_2145 at price %.2f"%(mk["close"][-1]))
+            # 步步高：case3.a - 小空局部止跌10分钟~明确止跌30分钟 +最低点约高于昨日收盘
+            if mk["close"].min() > self.yestoday_close * 0.996 and mk["close"].min() < mk["close"][0]*0.99 \
+                and mk["close"][-10:].min() >= mk["close"][0:num_bar-10].min() and (mk["close"][-5:] >= mk["vwap"][-5:]).all():
+                self.cancel_all()
+                if self.pos == 0:
+                    self.buy(mk["close"][-1], self.dst_long_pos, True)
+                    self.write_log("kaicang_long_3_a at price %.2f"%(mk["close"][-1]))
+
+            if num_bar == 30:
+                self.cancel_all()
+                self.actual_long_pos = self.pos
+                #self.first20_low = mk["price"][:20].min()
         elif num_bar > 30:
             # 市价单平仓3分钟只是部分成交则提醒人工干预
             if self.pos > 0 and self.pos != self.actual_long_pos:
                 self.partial_pos_count += 1
                 if self.partial_pos_count > 3:
                     self.write_log("市价单3分钟未成交，提醒人工介入!")
-                    winsound.PlaySound(bs.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
+                    #winsound.PlaySound(bs.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
             else:
                 self.partial_pos_count = 0
+
+            # 步步高：case3.a - 小空止跌30分钟 + 最低点约高于昨日收盘
+            if mk["close"].min() > self.yestoday_close * 0.996 and mk["close"].min() < mk["close"][0]*0.985 \
+                and mk["close"][-10:].min() >= mk["close"][0:num_bar-10].min() and (mk["close"][-5:] >= mk["vwap"][-5:]).all():
+                self.cancel_all()
+                if self.pos == 0:
+                    self.buy(mk["close"][-1], self.dst_long_pos, True)
+                    self.write_log("kaicang_long_3_a at price %.2f"%(mk["close"][-1]))
+
+            # 相对低位止跌做多
+            if mk["close"][20:].min() < self.first20_low*0.992 or mk["close"][20:].min() > self.first20_low*1.008:
+                self.isready_zd_duo = False
+            else: # 止跌 + 窄幅震荡 + 在低位 + 有超过一半的时间在绝对低位
+                lastest_30 = mk["close"][-30:]
+                min_30 = lastest_30.min()
+                max_30 = lastest_30.max()
+                if lastest_30[0] <= min_30 and max_30 <= min_30*1.02 \
+                    and min_30 < self.first20_low*.1.008 and len(lastest_30[lastest_30 < min_30*1.01]) > 15:
+                    #TODO: 高于30k均线，止损操作
+                    if self.pos == 0 and num_bar < 270 and not self.isready_zd_duo:
+                        self.cancel_all()
+                        self.buy(mk["close"][-1], self.dst_long_pos, True)
+                        self.write_log("kaicang_zd at price %.2f when time is %d"%(mk["close"][-1], num_bar))
+                        self.isready_zd_duo = True
 
             # case3：首次滞涨后突破止盈（微突破不止盈，可以考虑协同第二波多滞涨止盈一起工作）
             if self.above_zz_1 > 0.00001 and self.zz_count == 1 and mk["close"][-1] > self.zz_1_high*(1.0+self.above_zz_1):

@@ -26,7 +26,7 @@ import pandas as pd
 import operator
 from time import time
 import winsound
-import bs_vn_base as bs
+#import bs_vn_base as bs
 
 #partial bubugao strategy with close fuction while zhizhang
 class BubugaoZZ_short(CtaTemplate):
@@ -100,9 +100,6 @@ class BubugaoZZ_short(CtaTemplate):
         #self.cancel_all()
         #am = self.am
         #am.update_bar(bar)
-        if self.inited:
-            self.write_log("API_STABILITY_MONITOR: %f, %d, num_bar = %d"%(bar.close_price, bar.volume, num_bar))
-
         cur_dt = bar.datetime.date()
 
         #TODOs: get cur_bar 391 using history interface once network breakup or startup among trading
@@ -116,6 +113,9 @@ class BubugaoZZ_short(CtaTemplate):
         mk = mk[mk.index.date==cur_dt]
 
         num_bar = len(mk)
+
+        if self.inited:
+            self.write_log("API_STABILITY_MONITOR: %f, %d, num_bar = %d"%(bar.close_price, bar.volume, num_bar))
 
         # 回测设置：早盘固定时间开仓，滞涨止盈回测用
         if self.backtest_flag and num_bar == 15:
