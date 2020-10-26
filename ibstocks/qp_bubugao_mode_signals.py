@@ -155,7 +155,6 @@ def make_pipeline():
     
     return pipe
 
-
 def before_trading_start(context, data):
     """
     Called every day before market open.
@@ -342,8 +341,9 @@ def handle_data(context, data):
 
             #4.a 空止跌做震荡多
             if num_bar < 185 and mk["price"].min() < mk["price"][0]*0.985 and mk["price"].min() < h['price'][-num_bar - 1]*0.985 \
-                and (mk['price'][-30:] > mk["price"][day_CH_index:-30].min()*0.998).all() and mk['price'][-1] < mk["price"][0] \
-                and mk['price'][-30:].max() < mk["price"].min() + (day_CH_index - mk["price"].min())*0.45 \
+                and (mk['price'][-30:] > mk["price"][day_CH_index:-30].min()*0.998).all() \
+                and mk['price'][-30:].max() < mk["price"].min() + (day_CH - mk["price"].min())*0.45 \
+                and mk["price"][-1] <  mk["price"].min() + (day_CH - mk["price"].min())*0.2 \
                 and mk["price"].max() < mk["price"][0]*1.015:
                 if context.portfolio.positions[stock].amount <= 2:
                     context.xiankong_zd_duo = True
@@ -356,7 +356,7 @@ def handle_data(context, data):
                     else:
                         context.cc_avg_price[stock] = (context.cc_avg_price[stock] + mk["price"][-1])/2
                     print("mode_4a_kong_30mins_zhidie_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent)) 
-                    print("double check whether it's confirming zhicheng or it. if so, after 23:00 and second kong is a good choice for long.")
+                    print("double check whether it's painduo trending and confirming zhicheng or it. if so, after 23:00 and second kong is a good choice for long.")
 
 
             #3.c类盘中相对低位止跌做多
@@ -393,7 +393,9 @@ def handle_data(context, data):
             #止损：破相后反弹止损
             if context.portfolio.positions[stock].amount>0 and context.xiankong_zd_duo == False \
                 and (mk["price"].min() < context.low_first20mins[stock]*0.99 and context.low_first20mins[stock] < h['price'][-num_bar - 1]*1.015) \
-                and mk_l20["price"][-1] > (mk['price'][20:].min() + mk['price'].max())/2 and mk_l20["price"][-1] < mk_l20["price"].max():
+                and mk_l20["price"][-1] > (mk['price'][20:].min() + mk['price'].max())/2 \
+                and ((num_bar > 270 and mk_l20["price"][-1] < mk_l20["price"].max()) \
+                or (mk_l20["price"][-5:] < mk_l20["price"][:-5].max()*1.0015).all()):
                 open_order = get_open_orders(stock)
                 if len(open_order) > 0:
                     cancel_order(open_order[0])

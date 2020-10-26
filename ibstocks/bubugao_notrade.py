@@ -298,8 +298,9 @@ class BubugaoSignal(CtaTemplate):
             # Signal：mode_4a_1
             # 空止跌做震荡多或反弹
             if num_bar < 185 and mk["close"].min() < mk["close"][0]*0.985 and mk["close"].min() < self.yestoday_close*0.985 \
-                and (mk['close'][-30:] > mk["close"][day_CH_index:-30].min()*0.998).all() and mk['close'][-1] < mk["close"][0] \
-                and mk['close'][-30:].max() < mk["close"].min() + (day_CH_index - mk["close"].min())*0.45 \
+                and (mk['close'][-30:] > mk["close"][day_CH_index:-30].min()*0.998).all() \
+                and mk['close'][-30:].max() < mk["close"].min() + (day_CH - mk["close"].min())*0.45 \
+                and mk['close'][-1] < mk["close"].min() + (day_CH - mk["close"].min())*0.2 \
                 and day_CH < mk["close"][0]*1.015:
                 self.xiankong_zd_duo = True
                 if '4a_1' in self.strategies:
@@ -348,7 +349,8 @@ class BubugaoSignal(CtaTemplate):
             if self.long_avg_price >0.1 and self.xiankong_zd_duo == False \
                 and (mk["close"].min() < self.first20_low*0.99 and self.first20_low < self.yestoday_close*1.015) \
                 and mk_l20["close"][-1] > (mk['close'][20:].min() + day_CH)/2 \
-                and mk_l20["close"][-1] < mk_l20["close"].max(): #TODO: 目前只要一分钟滞涨就止损
+                and ((num_bar > 270 and mk_l20["close"][-1] < mk_l20["close"].max()) \
+                or (mk_l20["close"][-5:] < mk_l20["close"][:-5].max()*1.0015).all()):
                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                 if self.sh:
                     self.sh.write("%s: SIGNAL_changqi_piankong_fantan_zhishun at price %.2f with profit %.1f\n"%(mk.index[-1], mk["close"][-1], res))
