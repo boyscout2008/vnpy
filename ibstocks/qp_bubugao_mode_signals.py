@@ -126,7 +126,8 @@ def make_pipeline():
 
     #base_universe = exch_filter & stock_filter
 
-    base_universe = StaticSids([53098, 23710, 53884, 39635]) #3.a
+    #base_universe = StaticSids([53098, 23710, 53884, 39635]) #3.a
+    base_universe = StaticSids([52957, 50683, 8134, 3436,22355,53926,3431,8119,52490,33052])
     #base_universe = StaticSids([53098])
     
     price_filter = USEquityPricing.close.latest > 5
@@ -164,10 +165,10 @@ def before_trading_start(context, data):
     context.zz_count_max = 1
     # TODO: 每个stock分别设置该值
     context.zy_threshold = 1.045 #股性极好的放大到0.09，如clsk；股性好则放大到0.07
-    context.cc_avg_price = 0.0
     context.xiankong_zd_duo = False
     context.pianduo_tiaozheng = False
 
+    context.cc_avg_price = {}
     context.median_start = {}
     context.zz_count = {}
     context.zz_1_high = {}
@@ -203,7 +204,7 @@ def handle_data(context, data):
                 if len(open_order) > 0:
                     cancel_order(open_order[0])
                 order_target(stock, 0)
-                res = (mk["price"][-1]-context.cc_avg_price)/context.cc_avg_price*100
+                res = (mk["price"][-1]-context.cc_avg_price[stock])/context.cc_avg_price[stock]*100
                 print("qiangzhi pingcang %s at price: %f, with profit %.1f"%(stock, mk["price"][-1], res))
             continue
         
@@ -225,14 +226,14 @@ def handle_data(context, data):
                     or (len(mk[mk["price"] > mk["vwap"]*0.998])>= num_bar-3 and mk["price"][-5:].max() == mk["price"].max())) \
                     and mk["price"].max() < mk["price"].min()*context.zy_threshold and mk["price"].min() > h['price'][-num_bar - 1]*0.992:
                     order_target(stock, 1)
-                    context.cc_avg_price = mk["price"][-1]
+                    context.cc_avg_price[stock] = mk["price"][-1]
                     print("mode2a_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent))
                     print("double check whether it's zuliwei or not, like last day's high or recent high")
                 #步步高4.b：低开主多
                 elif mk["price"][0] < h['price'][-num_bar - 1] * 0.992 \
-                    and (mk["price"][3:] >= mk["vwap"][3:]).all() and day_CH > mk["price"][0]*1.015 and  day_CH > h['price'][-num_bar - 1]):
+                    and (mk["price"][3:] >= mk["vwap"][3:]).all() and day_CH > mk["price"][0]*1.015 and day_CH > h['price'][-num_bar - 1]:
                         order(stock, 1)
-                        context.cc_avg_price = mk["price"][-1]
+                        context.cc_avg_price[stock] = mk["price"][-1]
                         print("mode4b_dikai_pianduo_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent))
                         print("double check whether duanxian pianduo or not, buy after 22:05 is another good choice!")
                     
@@ -246,10 +247,10 @@ def handle_data(context, data):
                     if len(open_order) > 0:
                         cancel_order(open_order[0])
                     order_target(stock, 2)
-                    if context.cc_avg_price < 0.1:
-                        context.cc_avg_price = mk["price"][-1]
+                    if context.cc_avg_price[stock] < 0.1:
+                        context.cc_avg_price[stock] = mk["price"][-1]
                     else:
-                        context.cc_avg_price = (context.cc_avg_price + mk["price"][-1])/2
+                        context.cc_avg_price[stock] = (context.cc_avg_price[stock] + mk["price"][-1])/2
                     print("mode_3a_xiaodi_10mins_zhidie_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent))
             #步步高4.a：早盘小空止跌转震荡多 - 小空 + 相对低位11mins止跌 + 破相
             elif mk["price"].min() < mk["price"][0]*0.975 and mk["price"].min() < h['price'][-num_bar - 1]*0.985 \
@@ -261,10 +262,10 @@ def handle_data(context, data):
                     if len(open_order) > 0:
                         cancel_order(open_order[0])
                     order_target(stock, 2)
-                    if context.cc_avg_price < 0.1:
-                        context.cc_avg_price = mk["price"][-1]
+                    if context.cc_avg_price[stock] < 0.1:
+                        context.cc_avg_price[stock] = mk["price"][-1]
                     else:
-                        context.cc_avg_price = (context.cc_avg_price + mk["price"][-1])/2
+                        context.cc_avg_price[stock] = (context.cc_avg_pric[stock] + mk["price"][-1])/2
                     print("mode_4a_kong_10mins_zhidie_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent))
                     print("double check whether it's confirming zhicheng. if so, just do it.")
 
@@ -289,10 +290,10 @@ def handle_data(context, data):
                     if len(open_order) > 0:
                         cancel_order(open_order[0])
                     order_target(stock, 3)
-                    if context.cc_avg_price < 0.1:
-                        context.cc_avg_price = mk["price"][-1]
+                    if context.cc_avg_price[stock] < 0.1:
+                        context.cc_avg_price[stock] = mk["price"][-1]
                     else:
-                        context.cc_avg_price = (context.cc_avg_price + mk["price"][-1])/2
+                        context.cc_avg_price[stock] = (context.cc_avg_price[stock] + mk["price"][-1])/2
                     print("mode_3a_xiaodi_30mins_zhidie_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent)) 
             #3.b类先多后调整止跌后的续多机会
             #TODOs: 加一个基础判断，30k 高于均线
@@ -313,10 +314,10 @@ def handle_data(context, data):
                         if len(open_order) > 0:
                             cancel_order(open_order[0])
                         order_target(stock, 3)
-                        if context.cc_avg_price < 0.1:
-                            context.cc_avg_price = mk["price"][-1]
+                        if context.cc_avg_price[stock] < 0.1:
+                            context.cc_avg_price[stock] = mk["price"][-1]
                         else:
-                            context.cc_avg_price = (context.cc_avg_price + mk["price"][-1])/2
+                            context.cc_avg_price[stock] = (context.cc_avg_price[stock] + mk["price"][-1])/2
                         print("mode_3b_zhidie_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent)) 
                         print("double check whether it's weizhi zhendang_duo and already above zhongyang or it. if so, just zhiying.")
                         if (mk_30['price'] > mk_30['vwap']).all():
@@ -331,10 +332,10 @@ def handle_data(context, data):
                         if len(open_order) > 0:
                             cancel_order(open_order[0])
                         order_target(stock, 3)
-                        if context.cc_avg_price < 0.1:
-                            context.cc_avg_price = mk["price"][-1]
+                        if context.cc_avg_price[stock] < 0.1:
+                            context.cc_avg_price[stock] = mk["price"][-1]
                         else:
-                            context.cc_avg_price = (context.cc_avg_price + mk["price"][-1])/2
+                            context.cc_avg_price[stock] = (context.cc_avg_price[stock] + mk["price"][-1])/2
                         print("mode_2b_zhendang_duo_tupo_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent)) 
                         print("double check whether it's xiaofu_zhendang_duo or not. if so, just zhiying.")
                         print("double check whether it's 2a already. if so, no long.")                      
@@ -350,10 +351,10 @@ def handle_data(context, data):
                     if len(open_order) > 0:
                         cancel_order(open_order[0])
                     order_target(stock, 3)
-                    if context.cc_avg_price < 0.1:
-                        context.cc_avg_price = mk["price"][-1]
+                    if context.cc_avg_price[stock] < 0.1:
+                        context.cc_avg_price[stock] = mk["price"][-1]
                     else:
-                        context.cc_avg_price = (context.cc_avg_price + mk["price"][-1])/2
+                        context.cc_avg_price[stock] = (context.cc_avg_price[stock] + mk["price"][-1])/2
                     print("mode_4a_kong_30mins_zhidie_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent)) 
                     print("double check whether it's confirming zhicheng or it. if so, after 23:00 and second kong is a good choice for long.")
 
@@ -370,10 +371,10 @@ def handle_data(context, data):
                         if len(open_order) > 0:
                             cancel_order(open_order[0])
                         order_target(stock, 4)
-                        if context.cc_avg_price < 0.1:
-                            context.cc_avg_price = mk["price"][-1]
+                        if context.cc_avg_price[stock] < 0.1:
+                            context.cc_avg_price[stock] = mk["price"][-1]
                         else:
-                            context.cc_avg_price = (context.cc_avg_price + mk["price"][-1])/2
+                            context.cc_avg_price[stock] = (context.cc_avg_price[stock] + mk["price"][-1])/2
                         print("mode_3c_zhidie_kaicang %s at price: %f with percent %f"%(stock, mk["price"][-1], context.percent))
 
             #13：45~13:55定点止损
@@ -383,11 +384,11 @@ def handle_data(context, data):
                 if len(open_order) > 0:
                     cancel_order(open_order[0])
                 order_target(stock, 0)
-                res = (mk["price"][-1]-context.cc_avg_price)/context.cc_avg_price*100
+                res = (mk["price"][-1]-context.cc_avg_price[stock])/context.cc_avg_price[stock]*100
                 print("dingdian: 13:45 zhishun %s at price: %f with profit %.1f"%(stock, mk["price"][-1], res))
                 print("double check whether it's creating xindi. if so, just zhishun; if not, wait until 14:00 and check 30k.")
 
-                context.cc_avg_price = 0.0
+                context.cc_avg_price[stock] = 0.0
 
             #止损：破相后反弹止损
             if context.portfolio.positions[stock].amount>0 and context.xiankong_zd_duo == False \
@@ -396,10 +397,10 @@ def handle_data(context, data):
                 open_order = get_open_orders(stock)
                 if len(open_order) > 0:
                     cancel_order(open_order[0])
-                res = (mk["price"][-1]-context.cc_avg_price)/context.cc_avg_price*100
+                res = (mk["price"][-1]-context.cc_avg_price[stock])/context.cc_avg_price[stock]*100
                 order_target(stock, 0)
                 print("changqi_piankong_fantan_zhishun %s at price %.2f with profit %.1f"%(stock, mk["price"][-1], res))
-                context.cc_avg_price = 0.0
+                context.cc_avg_price[stock] = 0.0
 
             if num_bar - context.median_start[stock] > 30:
                 median_CH_index, median_CH = max(enumerate(mk["price"][context.median_start[stock]:]), key=operator.itemgetter(1))
@@ -415,10 +416,10 @@ def handle_data(context, data):
                             open_order = get_open_orders(stock)
                             if len(open_order) > 0:
                                 cancel_order(open_order[0])
-                            res = (mk["price"][-1]-context.cc_avg_price)/context.cc_avg_price*100
+                            res = (mk["price"][-1]-context.cc_avg_price[stock])/context.cc_avg_price[stock]*100
                             order_target(stock, 0)
                             print("zhiying %s at price: %f, with profit %.1f"%(stock, mk["price"][-1], res))
-                            context.cc_avg_price = 0.0
+                            context.cc_avg_price[stock] = 0.0
                     else:
                         if context.portfolio.positions[stock].amount>0 and context.zz_count[stock] >= context.zz_count_max \
                             and median_CH > h['price'][len(h) - num_bar - 1]*1.055 and mk["price"][-1] > (mk["vwap"][-1] + (median_CH - mk["vwap"][-1])*0.5):
@@ -426,9 +427,9 @@ def handle_data(context, data):
                             if len(open_order) > 0:
                                 cancel_order(open_order[0])
                             order_target(stock, 0)
-                            res = (mk["price"][-1]-context.cc_avg_price)/context.cc_avg_price*100
+                            res = (mk["price"][-1]-context.cc_avg_price[stock])/context.cc_avg_price[stock]*100
                             print("zhiying %s at price: %f with profit %.1f"%(stock, mk["price"][-1], res))
-                            context.cc_avg_price = 0.0
+                            context.cc_avg_price[stock] = 0.0
 
 def stock_filter(context, data):
     if len(context.security_list) == 0:
@@ -451,6 +452,7 @@ def stock_filter(context, data):
         context.median_start[stock] = 1
         context.zz_count[stock] = 0
         context.zz_1_high[stock] = 0.0
+        context.cc_avg_price[stock] = 0.0
 
     if len(context.position_stock) > 0:
         context.percent = 1/len(context.position_stock)
