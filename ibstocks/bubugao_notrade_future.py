@@ -352,27 +352,31 @@ class BubugaoSignalFuture(CtaTemplate):
                 self.long_avg_price = 0.0
 
             # 止盈
-            if num_bar - self.median_start > 30:
+            if num_bar - self.median_start > 10:
                 median_CH_index, median_CH = max(enumerate(mk["close"][self.median_start:]), key=operator.itemgetter(1))
                 median_h_zz = mk[self.median_start+median_CH_index:]
-                if len(median_h_zz) >= 30 and len(median_h_zz) < 60 and median_CH > median_h_zz["vwap"][0] * self.duobeili_threshold:
-                    if len(median_h_zz) == 30:
-                        self.zz_count += 1
-                        if self.zz_count == 1:
-                            self.zz_1_high = median_CH
+                if median_CH > median_h_zz["vwap"][0] * self.duobeili_threshold:
+                    if len(median_h_zz) == 10 or len(median_h_zz) == 18:
                         with open(self.signal_log, mode='a') as self.sh:
-                            self.sh.write("%s: NORMAL_SIGNAL_zz: %d times, at price %.2f\n"%(mk.index[-1], self.zz_count, mk["close"][-1]))
-                        #print((mk["vwap"][-1] + median_CH )*0.5)
-                        #case1&2: close long while zz 1 or 2 times
-                    if self.zz_count >= self.zz_count_max \
-                        and median_CH > self.yestoday_close*1.015 and mk["close"][-1] > (mk["vwap"][-1] + median_CH )*0.5:
-                        if self.long_avg_price > 0.1:
-                            res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
+                            self.sh.write("%s: NORMAL_SIGNAL_jubu_zz %d minutes, at price %.2f\n"%(mk.index[-1], len(median_h_zz), mk["close"][-1]))
+                    elif len(median_h_zz) >= 30 and len(median_h_zz) < 60:
+                        if len(median_h_zz) == 30:
+                            self.zz_count += 1
+                            if self.zz_count == 1:
+                                self.zz_1_high = median_CH
                             with open(self.signal_log, mode='a') as self.sh:
-                                self.sh.write("%s: SIGNAL_zz_zhiying: %d times, at price %.2f with profit %.1f\n"%(mk.index[-1], \
-                                    self.zz_count, mk["close"][-1], res))
-                                self.sh.write("Double check whether it's a strong trending; if so, wait second ZZ signal.\n")
-                            self.long_avg_price = 0.0
+                                self.sh.write("%s: NORMAL_SIGNAL_zz: %d times, at price %.2f\n"%(mk.index[-1], self.zz_count, mk["close"][-1]))
+                            #print((mk["vwap"][-1] + median_CH )*0.5)
+                            #case1&2: close long while zz 1 or 2 times
+                        if self.zz_count >= self.zz_count_max \
+                            and median_CH > self.yestoday_close*1.015 and mk["close"][-1] > (mk["vwap"][-1] + median_CH )*0.5:
+                            if self.long_avg_price > 0.1:
+                                res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
+                                with open(self.signal_log, mode='a') as self.sh:
+                                    self.sh.write("%s: SIGNAL_zz_zhiying: %d times, at price %.2f with profit %.1f\n"%(mk.index[-1], \
+                                        self.zz_count, mk["close"][-1], res))
+                                    self.sh.write("Double check whether it's a strong trending; if so, wait second ZZ signal.\n")
+                                self.long_avg_price = 0.0
 
     def on_order(self, order: OrderData):
         """
