@@ -214,7 +214,7 @@ class BubugaoSignalFuture(CtaTemplate):
             self.bars_30k = self.bars_30k.append(df_30k, ignore_index=True)
 
         # 尾盘强制平仓 TODO: 根据当前时间定是否是尾盘
-        if cur_time >= time(hour=14,minute=45) and cur_time <= time(hour=15,minute=0):
+        if cur_time > time(hour=14,minute=45) and cur_time <= time(hour=15,minute=0):
             if  self.long_avg_price > 0.1 and self.cover_before_close:
                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
@@ -243,7 +243,7 @@ class BubugaoSignalFuture(CtaTemplate):
             # 无多背离 + 开盘偏多信号 + 最近10分钟滞跌 + 无破相空 + 长期偏多走稳|小低局部止跌
             if day_CH < mk["vwap"][day_CH_index]*self.duobeili_threshold and mk["close"][:4].max() > mk["open"][0] \
                 and (mk['close'][-10:] >= mk["close"][day_CH_index:-10].min()).all() and mk['close'][-10:].max() < day_CH \
-                and day_CL > self.yestoday_close*0.994 and (day_CL > mk["open"][0]*0.994 or self.is_30k_positive):
+                and day_CL > min(self.yestoday_close, mk["open"][0])*0.994:
                 if (mk["close"] >= mk["vwap"]*0.999).all() and '2a' in self.long_mode.split(' '):
                     if '2a' not in self.strategies and self.is_30k_positive:
                         self.long_avg_price = mk["close"][-1]
@@ -267,7 +267,7 @@ class BubugaoSignalFuture(CtaTemplate):
             # 无多背离|多背离 + 最近30分钟滞跌 + 无破相空 + 长期偏多走稳|小低局部止跌
             median_adjust_low = mk["close"][day_CH_index:-30].min()
             if (mk['close'][-30:] > median_adjust_low*0.999).all() and mk['close'][-1] > median_adjust_low \
-                and day_CL > self.yestoday_close*0.994 and (day_CL > mk["open"][0]*0.994 or self.is_30k_positive):
+                and day_CL > min(self.yestoday_close, mk["open"][0])*0.994:
                 if ((mk["close"][-10:] > mk["vwap"][-10:]*0.999).all() or (mk["close"][-30:] < mk["vwap"][-30:]).all()):
                     if day_CH < mk["vwap"][day_CH_index]*self.duobeili_threshold:
                         #normal signal
@@ -279,7 +279,8 @@ class BubugaoSignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3a_1_xiaodi_30mins_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         #print(self.long_mode.split(' '))
-                        if '3a_1' in self.long_mode.split(' ') and '3a_1' not in self.strategies:
+                        if '3a_1' in self.long_mode.split(' ') and '3a_1' not in self.strategies \
+                            and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=9,minute=50)):
                             #and self.is_30k_positive:
                             self.strategies['3a_1'] = mk["close"][-1]
                             if self.long_avg_price < 0.1:
@@ -301,6 +302,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3b_duotiaozheng_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         
                         if '3b' in self.long_mode.split(' ') and '3b' not in self.strategies \
+                            and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=14,minute=0)) \
                             and self.zz_count < self.zz_count_max and self.is_30k_positive:
                             self.strategies['3b'] = mk["close"][-1]
                             if self.long_avg_price < 0.1:
