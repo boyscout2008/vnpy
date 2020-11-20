@@ -38,6 +38,9 @@ from vnpy.app.cta_strategy import (
     BarGenerator,
     ArrayManager
 )
+from vnpy.trader.object import (BarData,TickData)
+from vnpy.trader.constant import Exchange, Interval
+import jqdatasdk as jq
 
 import pandas as pd
 import operator
@@ -59,7 +62,7 @@ class BubugaoSignalFuture(CtaTemplate):
     above_zz_1 = 0.0#1.001
     duobeili_threshold = 1.006 # 针对各品种微调，目前铁矿5,7,9,11个点分别是1.006，1.008，1.01，1.012
     dst_long_pos = 0
-    zy_threshold = 1.025 # zhongyang
+    zy_threshold = 1.01 # zhongyang
     #long_mode = ['2a', '3a_0', '3a_1', '3b', '3c'] #omit 4a and 4b now
     long_mode = "2a 3a_0 3a_1 3b 3c"
     cover_before_close = True
@@ -82,14 +85,17 @@ class BubugaoSignalFuture(CtaTemplate):
     #bar_30m = []
     strategies = {}
     first20_low = 0.0
-    yestoday_close = 9999.0
-    yestoday_settlement = 9999.0
+    yestoday_close = 1000000.0
+    yestoday_settlement = 1000000.0
     # position related 
     #partial_pos_count = 0
     #actual_long_pos = 0
+    SOUND_WARNING_LOST = "e://proj-futures/vnpy/ibstocks/warning_lost.wav" # 30s
+    SOUND_NOTICE_ORDER = "e://proj-futures/vnpy/ibstocks/notice_order.wav" # 5~10s
+    SOUND_MANUAL_INTERUPT = "e://proj-futures/vnpy/ibstocks/manual_interupt.wav" # 10~20s
 
     parameters = ["zz_count_max", "above_zz_1", "duobeili_threshold", "dst_long_pos", "zy_threshold", "long_mode", "cover_before_close"]
-    variables = ["median_start", "zz_count", "zz_1_high", "trending"]
+    variables = ["median_start", "zz_count", "zz_1_high"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
         """"""
@@ -105,7 +111,11 @@ class BubugaoSignalFuture(CtaTemplate):
         self.cur_trading_date = datetime.now().date()
         # signal file
         #curDay = time.strftime('%Y%m%d', time.localtime(time.time()))
-        self.signal_log = 'E://proj-futures/logs/' + strategy_name + '_' + vt_symbol.split('.')[0] + '.log'
+        self.symbol = vt_symbol.split('.')[0]
+        self.exchange = Exchange(vt_symbol.split(".")[1])
+        self.symbol_jq = self.to_jq_symbol(self.symbol, self.exchange)
+        print(self.symbol_jq)
+        self.signal_log = 'E://proj-futures/logs_vnpy/' + strategy_name + '.log'
         self.sh = None
         self.zz_prices = []
         self.zd_prices = []
@@ -121,7 +131,82 @@ class BubugaoSignalFuture(CtaTemplate):
         """
         self.write_log("策略初始化")
 
-        self.load_bar(1) #载入1天的历史数据,实盘中用于中断和盘中启动
+        #回测调用数据库
+        #self.load_bar(1) #载入1天的历史数据,实盘中用于中断和盘中启动
+
+        #-----------------实盘调用jqdata初始化
+        # 获取当前日期
+        cur_dt = datetime.today()
+        endDate = cur_dt.strftime('%Y-%m-%d %H:%M:%S')
+
+        #start = end - timedelta(days)
+        #self.today = str(self.cta_engine.today)[0:10]
+        print(cur_dt)
+
+        # jqdata登陆
+        jq.auth(u'17898826618', u'79063333')
+
+        initData = []
+        trade_days_list = jq.get_trade_days(end_date=cur_dt, count=2)
+
+        # 获取前多日如数，按倒叙排序
+        minute_df = jq.get_price(self.symbol_jq, start_date=trade_days_list[0], end_date=endDate, frequency='1m')
+        print(trade_days_list[0])
+        print(minute_df.tail(1))
+        # 将数据转换为loadCsv中处理的数据类型，方便处理
+        del minute_df['money']
+        minute_df = minute_df.reset_index()
+        minute_df.rename(columns={'index': 'trade_date', 'open': 'Open', 'close': 'Close', 'high': 'High', 'low': 'Low','volume': 'TotalVolume'}, inplace=True)
+        minute_df["Date"] = minute_df["trade_date"].map(lambda x: str(x)[0:10])
+        minute_df["Time"] = minute_df["trade_date"].map(lambda x: str(x)[11:])
+        del minute_df['trade_date']
+
+        # 将数据传入到数据队列当中
+        for index, row in minute_df.iterrows():
+            #bar = BarData()
+            bardate = datetime.strptime(row['Date'], '%Y-%m-%d').strftime('%Y%m%d')
+            bartime = datetime.strptime(row['Time'], '%H:%M:%S').strftime('%H%M%S')
+
+            hour = bartime[0:2]
+            minute = bartime[2:4]
+            sec = bartime[4:6]
+            if minute == "00":
+                minute = "59"
+        
+                h = int(hour)
+                if h == 0:
+                    h = 24
+        
+                hour = str(h - 1).rjust(2, '0')
+            else:
+                minute = str(int(minute) - 1).rjust(2, '0')
+            bartime = hour + minute + sec
+  
+            bardatetime = datetime.strptime(' '.join([bardate, bartime]), '%Y%m%d %H%M%S')
+
+            bar = BarData(
+                symbol = self.symbol,
+                exchange = self.exchange,
+                interval= Interval.MINUTE,
+                gateway_name="DB",
+                #bar.open_interest=row['open_interest']
+                datetime = bardatetime,
+                open_price = row['Open'],
+                high_price = row['High'],
+                low_price = row['Low'],
+                close_price = row['Close'], 
+                volume = row['TotalVolume'],             
+            )
+
+            initData.append(bar)
+
+        #print(bar, row['Open'])
+        for bar in initData:
+            self.on_bar(bar)
+
+        with open(self.signal_log, mode='a') as self.sh:
+            self.sh.write("STRATIGY INITED\n")
+
 
     def on_start(self):
         """
@@ -186,18 +271,22 @@ class BubugaoSignalFuture(CtaTemplate):
         num_bar = len(mk)
 
         #TODOs: get bar 30mins
-        #self.bar_30m = mk_days['close'][-225:-1:30]
-        if self.inited and 'au' in self.signal_log:
-            with open(self.signal_log, mode='a') as self.sh:
-                self.sh.write("%s: API_STABILITY_MONITOR: %f, %d, num_bar = %d\n"%(mk["time"][-1], bar.close_price, bar.volume, num_bar))
+        if 'au' in self.signal_log:
+            if self.inited:
+                with open(self.signal_log, mode='a') as self.sh:
+                    self.sh.write("%s: API_STABILITY_MONITOR: %f, %d, num_bar = %d\n"%(mk["time"][-1], bar.close_price, bar.volume, num_bar))
             return
 
         if num_bar == 1:
             if len(mk_days) > 1:
                 self.yestoday_close = mk_days['close'][-2]
+                #开盘提醒
+                #if self.inited:
+                #    winsound.PlaySound(self.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
             self.zz_prices.clear()
             self.zd_prices.clear()
             self.strategies.clear()
+            self.xiankong_zd_duo = False
 
         # 30k计算及对应时间匹配检测（TODO）
         if num_bar%30 == 0:
@@ -212,6 +301,12 @@ class BubugaoSignalFuture(CtaTemplate):
             df_30k = pd.DataFrame({'datetime':[bar.datetime], 'date':[trading_date], 'time':[cur_time], 'open':[mk['open'][-15]], \
                 'high':[mk['high'][-15:].max()], 'low':[mk['low'][-15:].min()], 'close':[mk['close'][-1]]})
             self.bars_30k = self.bars_30k.append(df_30k, ignore_index=True)
+            with open(self.signal_log, mode='a') as self.sh:
+                self.sh.write("%s: CLOSE_30k, Price: %.2f; Positive: %d\n"%(mk["time"][-1], mk["close"][-1], self.is_30k_positive))
+
+        # 盘中重启，当日历史数据必须全部参与计算
+        if not self.inited and self.yestoday_close > 999999:
+            return
 
         # 尾盘强制平仓 TODO: 根据当前时间定是否是尾盘
         if cur_time > time(hour=14,minute=45) and cur_time <= time(hour=15,minute=0):
@@ -236,6 +331,7 @@ class BubugaoSignalFuture(CtaTemplate):
 
         day_CH_index, day_CH = max(enumerate(mk["close"]), key=operator.itemgetter(1))
         day_CL_index, day_CL = min(enumerate(mk["close"]), key=operator.itemgetter(1))
+        print(day_CH, day_CL)
         # 早盘：2a|3a_0 - 2种模式， 4a|4b -- 暂不提供信号
         if num_bar > 10 and num_bar <= 30: # 夜盘前一小时或日盘品种前半小时
             if num_bar == 20:
@@ -278,6 +374,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             else:
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3a_1_xiaodi_30mins_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                                    #self.cta_engine.send_email()
                         #print(self.long_mode.split(' '))
                         if '3a_1' in self.long_mode.split(' ') and '3a_1' not in self.strategies \
                             and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=9,minute=50)):
@@ -290,7 +387,9 @@ class BubugaoSignalFuture(CtaTemplate):
                             with open(self.signal_log, mode='a') as self.sh:
                                 self.sh.write("%s: SIGNAL_mode3a_1_xiaodi_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if '3a_0' in self.strategies:
-                                    self.sh.write("NOTE: mode_3a_1 after mode_3a_0, ignore it if necessary!\n") 
+                                    self.sh.write("NOTE: mode_3a_1 after mode_3a_0, ignore it if necessary!\n")
+                            # 3a_1 提醒
+                            #winsound.PlaySound(self.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
                     elif day_CH >= mk["vwap"][day_CH_index]*self.duobeili_threshold and mk["close"][day_CH_index:-30].min() < day_CH*0.996:
                         #normal signal
                         if (len(self.zd_prices) == 0 or median_adjust_low != self.zd_prices[-1][0]):
@@ -312,6 +411,8 @@ class BubugaoSignalFuture(CtaTemplate):
                             with open(self.signal_log, mode='a') as self.sh:
                                 self.sh.write("%s: SIGNAL_mode3b_duotiaozheng_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 self.sh.write("Double check whether it's weizhi zhendang_duo and already above zhongyang or it. if so, just zhiying.\n")
+                            # 3b 提醒
+                            #winsound.PlaySound(self.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
 
                     # 根据时间判定3c机会:类似3a类机会，只是中间可能是第二波小空止跌后多信号
                     if cur_time > time(hour=9,minute=50) and cur_time < time(hour=14,minute=10) \
@@ -331,7 +432,30 @@ class BubugaoSignalFuture(CtaTemplate):
                                 self.long_avg_price = sum(self.strategies.values())/len(self.strategies)
                             with open(self.signal_log, mode='a') as self.sh:
                                 self.sh.write("%s: SIGNAL_mode3c_xiangduidi_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                                self.sh.write("Double check 30k is above MA.\n") 
+                                self.sh.write("Double check 30k is above MA.\n")
+                            # 3c 提醒
+                            #.PlaySound(self.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
+
+            # Signal：mode_4b 先空止跌震荡多
+            # 空止跌做震荡多或反弹
+            print(cur_time, day_CL < self.yestoday_close*0.994, day_CL*self.duobeili_threshold < mk["vwap"][day_CL_index], day_CH_index, day_CL_index)
+            if (cur_time > time(hour=21,minute=30) or cur_time < time(hour=11,minute=0)) \
+                and (num_bar - day_CL_index == 30 or num_bar - day_CL_index == 18) \
+                and day_CL < self.yestoday_close*0.994 and day_CL*self.duobeili_threshold < mk["vwap"][day_CL_index] \
+                and mk['close'][-num_bar + day_CL_index:].max() < (day_CL + day_CH)*0.5 \
+                and day_CH < mk["open"][0]*1.008 and '4b' in self.long_mode:
+                self.xiankong_zd_duo = True
+                if '4b' not in self.strategies:
+                    self.strategies['4b'] = mk["close"][-1]
+                    if self.long_avg_price < 0.1:
+                        self.long_avg_price = mk["close"][-1]
+                    else:
+                        self.long_avg_price = sum(self.strategies.values())/len(self.strategies)
+                    with open(self.signal_log, mode='a') as self.sh:
+                        self.sh.write("%s: SIGNAL_mode4b_kong_18or30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                        self.sh.write("Double check whether it's confirming zhicheng or it. if so, second kong_zd is a good choice for long.\n")
+                        #if '4a' in self.strategies:
+                        #    self.sh.write("WARNING: mode_4b after mode_4a, ignore it if necessary!\n")
 
             # Signal：zhishun
             # 11：05~11:20定点止损
@@ -344,8 +468,8 @@ class BubugaoSignalFuture(CtaTemplate):
                     self.sh.write("Double check whether it's creating xindi. if not, wait until 14:45 and check 30k.\n")
                 self.long_avg_price = 0.0
             # 破相后反弹时局部滞涨止损
-            if self.long_avg_price >0.1 \
-                and day_CL < self.first20_low*0.998 and day_CL < self.yestoday_close*0.997 \
+            if self.long_avg_price >0.1 and self.xiankong_zd_duo == False \
+                and day_CL <= min(self.yestoday_close, mk["open"][0])*0.994 \
                 and (mk_l20["close"][-1] > (day_CL + day_CH)/2 or mk_l20["close"][-1]>mk_l20["vwap"][-1]*0.999) \
                 and (mk_l20["close"][-5:] < mk_l20["close"][:-5].max()*1.001).all():
                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
@@ -371,7 +495,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             #print((mk["vwap"][-1] + median_CH )*0.5)
                             #case1&2: close long while zz 1 or 2 times
                         if self.zz_count >= self.zz_count_max \
-                            and median_CH > self.yestoday_close*1.015 and mk["close"][-1] > (mk["vwap"][-1] + median_CH )*0.5:
+                            and median_CH > self.yestoday_close*self.zy_threshold and mk["close"][-1] > (mk["vwap"][-1] + median_CH )*0.5:
                             if self.long_avg_price > 0.1:
                                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                                 with open(self.signal_log, mode='a') as self.sh:
@@ -397,6 +521,49 @@ class BubugaoSignalFuture(CtaTemplate):
         Callback of stop order update.
         """
         self.put_event()
+
+    def to_jq_symbol(self, symbol: str, exchange: Exchange):
+        """
+        CZCE product of RQData has symbol like "TA1905" while
+        vt symbol is "TA905.CZCE" so need to add "1" in symbol.
+        """
+        if exchange in [Exchange.SSE, Exchange.SZSE]:
+            if exchange == Exchange.SSE:
+                jq_symbol = f"{symbol}.XSHG"  # 上海证券交易所
+            else:
+                jq_symbol = f"{symbol}.XSHE"  # 深圳证券交易所
+        elif exchange == Exchange.SHFE:
+            jq_symbol = f"{symbol}.XSGE"  # 上期所
+        elif exchange == Exchange.CFFEX:
+            jq_symbol = f"{symbol}.CCFX"  # 中金所
+        elif exchange == Exchange.DCE:
+            jq_symbol = f"{symbol}.XDCE"  # 大商所
+        elif exchange == Exchange.INE:
+            jq_symbol = f"{symbol}.XINE"  # 上海国际能源期货交易所
+        elif exchange == Exchange.CZCE:
+            # 郑商所 的合约代码年份只有三位 需要特殊处理
+            for count, word in enumerate(symbol):
+                if word.isdigit():
+                    break
+
+            # Check for index symbol
+            time_str = symbol[count:]
+            if time_str in ["88", "888", "99", "8888"]:
+                return f"{symbol}.XZCE"
+
+            # noinspection PyUnboundLocalVariable
+            product = symbol[:count]
+            year = symbol[count]
+            month = symbol[count + 1:]
+
+            if year == "9":
+                year = "1" + year
+            else:
+                year = "2" + year
+
+            jq_symbol = f"{product}{year}{month}.XZCE"
+
+        return jq_symbol.upper()
 
 '''
     def test_market_order(self):
