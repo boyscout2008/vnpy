@@ -120,7 +120,6 @@ class BubugaoSignalFuture(CtaTemplate):
         self.symbol_jq = self.to_jq_symbol(self.symbol, self.exchange)
         print(self.symbol_jq)
         self.signal_log = 'E://proj-futures/logs_vnpy/' + strategy_name + '.log'
-        self.webhook = "https://open.feishu.cn/open-apis/bot/v2/hook/13c65336-0887-44c7-a16e-ca3dd07b075a"
         
         self.sh = None
         self.zz_prices = []
@@ -329,7 +328,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 if self.email_note and self.inited:
                     msg = f"{cur_time}: weipan_pingcang with profit {res}!"
                     if not feishu:
-                        feishu = FeiShutalkChatbot(self.webhook)
+                        feishu = FeiShutalkChatbot()
                     feishu.send_text(msg)
                 #winsound.PlaySound(bs.SOUND_NOTICE_ORDER, winsound.SND_FILENAME)
             #if num_bar%15 == 0:
@@ -364,7 +363,7 @@ class BubugaoSignalFuture(CtaTemplate):
                         if self.email_note and self.inited:
                             msg = f"{cur_time}: SIGNAL_mode2a_kaicang!"
                             if not feishu:
-                                feishu = FeiShutalkChatbot(self.webhook)
+                                feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
                 elif day_CL < day_CH*0.997 and len(mk[mk['close'] < mk["vwap"]])>=10 \
                     and '3a_0' not in self.strategies and '3a_0' in self.long_mode.split(' '):
@@ -378,7 +377,7 @@ class BubugaoSignalFuture(CtaTemplate):
                     if self.email_note and self.inited:
                         msg = f"{cur_time}: SIGNAL_mode3a_0_xiaodi_10mins_zhidie_kaicang!"
                         if not feishu:
-                            feishu = FeiShutalkChatbot(self.webhook)
+                            feishu = FeiShutalkChatbot()
                         feishu.send_text(msg)
         elif num_bar > 30:
             #pre30m_CH_index, pre30m_CH = max(enumerate(mk["close"][:30]), key=operator.itemgetter(1))
@@ -400,7 +399,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 if self.email_note and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode3a_1_xiaodi_30mins_zhidie!"
                                     if not feishu:
-                                        feishu = FeiShutalkChatbot(self.webhook)
+                                        feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         #print(self.long_mode.split(' '))
                         if '3a_1' in self.long_mode.split(' ') and '3a_1' not in self.strategies \
@@ -418,7 +417,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             if self.email_note and self.inited:
                                 msg = f"{cur_time}: SIGNAL_mode3a_1_xiaodi_30mins_zhidie_kaicang!"
                                 if not feishu:
-                                    feishu = FeiShutalkChatbot(self.webhook)
+                                    feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
                             # 3a_1 提醒
                             #winsound.PlaySound(self.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
@@ -434,7 +433,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 if self.email_note and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode3b_duotiaozheng_zhidie!"
                                     if not feishu:
-                                        feishu = FeiShutalkChatbot(self.webhook)
+                                        feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if '3b' in self.long_mode.split(' ') and '3b' not in self.strategies \
                             and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=14,minute=0)) \
@@ -451,7 +450,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             if self.email_note and self.inited:
                                 msg = f"{cur_time}: SIGNAL_mode3b_duotiaozheng_zhidie_kaicang!"
                                 if not feishu:
-                                    feishu = FeiShutalkChatbot(self.webhook)
+                                    feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
                             #winsound.PlaySound(self.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
 
@@ -469,7 +468,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 if self.email_note and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode3c_xiangduidi_30mins_zhidie!"
                                     if not feishu:
-                                        feishu = FeiShutalkChatbot(self.webhook)
+                                        feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if '3c' in self.long_mode.split(' ') and '3c' not in self.strategies:# and self.is_30k_positive:
                             self.strategies['3c'] = mk["close"][-1]
@@ -483,7 +482,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             if self.email_note and self.inited:
                                 msg = f"{cur_time}: SIGNAL_mode3c_xiangduidi_30mins_zhidie_kaicang!"
                                 if not feishu:
-                                    feishu = FeiShutalkChatbot(self.webhook)
+                                    feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
                             # 3c 提醒
                             #.PlaySound(self.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
@@ -508,7 +507,7 @@ class BubugaoSignalFuture(CtaTemplate):
                     if self.email_note and self.inited:
                         msg = f"{cur_time}: SIGNAL_mode4b_kong_18or30mins_zhidie_kaicang!"
                         if not feishu:
-                            feishu = FeiShutalkChatbot(self.webhook)
+                            feishu = FeiShutalkChatbot()
                         feishu.send_text(msg)
                         #if '4a' in self.strategies:
                         #    self.sh.write("WARNING: mode_4b after mode_4a, ignore it if necessary!\n")
@@ -526,7 +525,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 if self.email_note and self.inited:
                     msg = f"{cur_time}: SIGNAL_dingdian_zhishun_1110!"
                     if not feishu:
-                        feishu = FeiShutalkChatbot(self.webhook)
+                        feishu = FeiShutalkChatbot()
                     feishu.send_text(msg)
             # 破相后反弹时局部滞涨止损
             if self.long_avg_price >0.1 and self.xiankong_zd_duo == False \
@@ -540,7 +539,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 if self.email_note and self.inited:
                     msg = f"{cur_time}: SIGNAL_changqi_piankong_fantan_zhishun!"
                     if not feishu:
-                        feishu = FeiShutalkChatbot(self.webhook)
+                        feishu = FeiShutalkChatbot()
                     feishu.send_text(msg)
             # 止盈
             if num_bar - self.median_start > 10:
@@ -553,7 +552,7 @@ class BubugaoSignalFuture(CtaTemplate):
                         if self.email_note and self.inited:
                             msg = f"{cur_time}: NORMAL_SIGNAL_jubu_zz 10 or 18mins!"
                             if not feishu:
-                                feishu = FeiShutalkChatbot(self.webhook)
+                                feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
                     elif len(median_h_zz) >= 30 and len(median_h_zz) < 60:
                         if len(median_h_zz) == 30:
@@ -565,7 +564,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             if self.email_note and self.inited:
                                 msg = f"{cur_time}: NORMAL_SIGNAL_zz 30 mins!"
                                 if not feishu:
-                                    feishu = FeiShutalkChatbot(self.webhook)
+                                    feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
                             #print((mk["vwap"][-1] + median_CH )*0.5)
                             #case1&2: close long while zz 1 or 2 times
@@ -581,7 +580,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 if self.email_note and self.inited:
                                     msg = f"{cur_time}: SIGNAL_zz_zhiying!"
                                     if not feishu:
-                                        feishu = FeiShutalkChatbot(self.webhook)
+                                        feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
 
     def on_order(self, order: OrderData):
