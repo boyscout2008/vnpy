@@ -358,7 +358,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             self.sh.write("%s: SIGNAL_mode2a_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                             self.sh.write("Double check whether it's zuliwei or not, like last day's high or recent high.\n")
                         if self.email_note and self.inited:
-                            msg = f"{cur_time}: SIGNAL_mode2a_kaicang!"
+                            msg = f"{cur_time}: SIGNAL_mode2a_kaicang {self.symbol}!"
                             if not feishu:
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
@@ -372,7 +372,7 @@ class BubugaoSignalFuture(CtaTemplate):
                         if '2a' in self.strategies:
                             self.sh.write("WARNING: zhuan_kong_jubu_zhidie_3a_0 after xiaoduo_2a, had better wait for the 3a_1 signal!\n")
                     if self.email_note and self.inited:
-                        msg = f"{cur_time}: SIGNAL_mode3a_0_xiaodi_10mins_zhidie_kaicang!"
+                        msg = f"{cur_time}: SIGNAL_mode3a_0_xiaodi_10mins_zhidie_kaicang {self.symbol}!"
                         if not feishu:
                             feishu = FeiShutalkChatbot()
                         feishu.send_text(msg)
@@ -412,7 +412,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 if '3a_0' in self.strategies:
                                     self.sh.write("NOTE: mode_3a_1 after mode_3a_0, ignore it if necessary!\n")
                             if self.email_note and self.inited:
-                                msg = f"{cur_time}: SIGNAL_mode3a_1_xiaodi_30mins_zhidie_kaicang!"
+                                msg = f"{cur_time}: SIGNAL_mode3a_1_xiaodi_30mins_zhidie_kaicang {self.symbol}!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
@@ -445,7 +445,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 self.sh.write("Double check whether it's weizhi zhendang_duo and already above zhongyang or it. if so, just zhiying.\n")
                             # 3b 提醒
                             if self.email_note and self.inited:
-                                msg = f"{cur_time}: SIGNAL_mode3b_duotiaozheng_zhidie_kaicang!"
+                                msg = f"{cur_time}: SIGNAL_mode3b_duotiaozheng_zhidie_kaicang {self.symbol}!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
@@ -477,7 +477,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 self.sh.write("%s: SIGNAL_mode3c_xiangduidi_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 self.sh.write("Double check 30k is above MA.\n")
                             if self.email_note and self.inited:
-                                msg = f"{cur_time}: SIGNAL_mode3c_xiangduidi_30mins_zhidie_kaicang!"
+                                msg = f"{cur_time}: SIGNAL_mode3c_xiangduidi_30mins_zhidie_kaicang {self.symbol}!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
@@ -502,7 +502,7 @@ class BubugaoSignalFuture(CtaTemplate):
                         self.sh.write("%s: SIGNAL_mode4b_kong_18or30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         self.sh.write("Double check whether it's confirming zhicheng or it. if so, second kong_zd is a good choice for long.\n")
                     if self.email_note and self.inited:
-                        msg = f"{cur_time}: SIGNAL_mode4b_kong_18or30mins_zhidie_kaicang!"
+                        msg = f"{cur_time}: SIGNAL_mode4b_kong_18or30mins_zhidie_kaicang {self.symbol}!"
                         if not feishu:
                             feishu = FeiShutalkChatbot()
                         feishu.send_text(msg)
@@ -520,7 +520,7 @@ class BubugaoSignalFuture(CtaTemplate):
                     self.sh.write("Double check whether it's creating xindi. if not, wait until 14:45 and check 30k.\n")
                 self.long_avg_price = 0.0
                 if self.email_note and self.inited:
-                    msg = f"{cur_time}: SIGNAL_dingdian_zhishun_1110!"
+                    msg = f"{cur_time}: SIGNAL_dingdian_zhishun_1110 {self.symbol}!"
                     if not feishu:
                         feishu = FeiShutalkChatbot()
                     feishu.send_text(msg)
@@ -534,7 +534,7 @@ class BubugaoSignalFuture(CtaTemplate):
                     self.sh.write("%s: SIGNAL_changqi_piankong_fantan_zhishun at price %.2f with profit %.1f\n"%(mk.index[-1], mk["close"][-1], res))
                 self.long_avg_price = 0.0
                 if self.email_note and self.inited:
-                    msg = f"{cur_time}: SIGNAL_changqi_piankong_fantan_zhishun!"
+                    msg = f"{cur_time}: SIGNAL_changqi_piankong_fantan_zhishun {self.symbol}!"
                     if not feishu:
                         feishu = FeiShutalkChatbot()
                     feishu.send_text(msg)
@@ -575,7 +575,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                     self.sh.write("Double check whether it's a strong trending; if so, wait second ZZ signal.\n")
                                 self.long_avg_price = 0.0
                                 if self.email_note and self.inited:
-                                    msg = f"{cur_time}: SIGNAL_zz_zhiying!"
+                                    msg = f"{cur_time}: SIGNAL_zz_zhiying {self.symbol}!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
