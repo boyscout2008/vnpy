@@ -69,7 +69,7 @@ class BubugaoSignalFuture(CtaTemplate):
     #long_mode = ['2a', '3a_0', '3a_1', '3b', '3c'] #omit 4a and 4b now
     long_mode = "2a 3a_0 3a_1 3b 3c"
     cover_before_close = True
-    email_note = False
+    email_note = 0
     #last_15mins_bar_index = 345-15 #铁矿+夜盘；日盘：225；白银沪镍等品种另算
 
     long_avg_price = 0.0
@@ -396,7 +396,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             else:
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3a_1_xiaodi_30mins_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                                if self.email_note and self.inited:
+                                if self.email_note == 1 and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode3a_1_xiaodi_30mins_zhidie!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
@@ -430,7 +430,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             else:
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3b_duotiaozheng_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                                if self.email_note and self.inited:
+                                if self.email_note == 1 and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode3b_duotiaozheng_zhidie!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
@@ -465,7 +465,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             else:
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3c_xiangduidi_30mins_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                                if self.email_note and self.inited:
+                                if self.email_note == 1 and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode3c_xiangduidi_30mins_zhidie!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
@@ -549,7 +549,7 @@ class BubugaoSignalFuture(CtaTemplate):
                     if len(median_h_zz) == 10 or len(median_h_zz) == 18:
                         with open(self.signal_log, mode='a') as self.sh:
                             self.sh.write("%s: NORMAL_SIGNAL_jubu_zz %d minutes, at price %.2f\n"%(mk.index[-1], len(median_h_zz), mk["close"][-1]))
-                        if self.email_note and self.inited:
+                        if self.email_note == 1 and self.inited:
                             msg = f"{cur_time}: NORMAL_SIGNAL_jubu_zz 10 or 18mins!"
                             if not feishu:
                                 feishu = FeiShutalkChatbot()
@@ -561,7 +561,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 self.zz_1_high = median_CH
                             with open(self.signal_log, mode='a') as self.sh:
                                 self.sh.write("%s: NORMAL_SIGNAL_zz: %d times, at price %.2f\n"%(mk.index[-1], self.zz_count, mk["close"][-1]))
-                            if self.email_note and self.inited:
+                            if self.email_note == 1 and self.inited:
                                 msg = f"{cur_time}: NORMAL_SIGNAL_zz 30 mins!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()

@@ -64,7 +64,7 @@ class XiadySignalFuture(CtaTemplate):
     zy_threshold = 0.99 # zhongying
     short_mode = "k2a k3a_0 k3a_1 k3b k3c k4a k4b"
     cover_before_close = True
-    email_note = False
+    email_note = 0
 
     short_avg_price = 0.0
     xianduo_zz_kong = False
@@ -366,7 +366,7 @@ class XiadySignalFuture(CtaTemplate):
                             else:
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode_k3a_1_xiaogao_30mins_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                                if self.email_note and self.inited:
+                                if self.email_note == 1 and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3a_1_xiaogao_30mins_zhizhang!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
@@ -399,7 +399,7 @@ class XiadySignalFuture(CtaTemplate):
                             else:
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode_k3b_kongtiaozheng_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                                if self.email_note and self.inited:
+                                if self.email_note == 1 and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3b_kongtiaozheng_zhizhang!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
@@ -434,7 +434,7 @@ class XiadySignalFuture(CtaTemplate):
                             else:
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode_k3c_xiangduigap_30mins_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
-                                if self.email_note and self.inited:
+                                if self.email_note == 1 and self.inited:
                                     msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3c_xiangduigap_30mins_zhizhang!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
@@ -511,11 +511,11 @@ class XiadySignalFuture(CtaTemplate):
             if num_bar - self.median_start > 10:
                 median_CL_index, median_CL = min(enumerate(mk["close"][self.median_start:]), key=operator.itemgetter(1))
                 median_l_zd = mk[self.median_start+median_CL_index:]
-                if median_CL > median_l_zd["vwap"][0] * self.kongbeili_threshold:
+                if median_CL < median_l_zd["vwap"][0] * self.kongbeili_threshold:
                     if len(median_l_zd) == 10 or len(median_l_zd) == 18:
                         with open(self.signal_log, mode='a') as self.sh:
                             self.sh.write("%s: NORMAL_SIGNAL_jubu_zd %d minutes, at price %.2f\n"%(mk.index[-1], len(median_l_zd), mk["close"][-1]))
-                        if self.email_note and self.inited:
+                        if self.email_note == 1 and self.inited:
                             msg = f"{cur_time}: NORMAL_SIGNAL_jubu_zd 10 or 18mins!"
                             if not feishu:
                                 feishu = FeiShutalkChatbot()
@@ -527,7 +527,7 @@ class XiadySignalFuture(CtaTemplate):
                                 self.zd_1_low = median_CL
                             with open(self.signal_log, mode='a') as self.sh:
                                 self.sh.write("%s: NORMAL_SIGNAL_zd: %d times, at price %.2f\n"%(mk.index[-1], self.zd_count, mk["close"][-1]))
-                            if self.email_note and self.inited:
+                            if self.email_note == 1 and self.inited:
                                 msg = f"{cur_time}: NORMAL_SIGNAL_zd 30 mins!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()
