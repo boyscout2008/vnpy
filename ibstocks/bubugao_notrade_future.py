@@ -246,6 +246,7 @@ class BubugaoSignalFuture(CtaTemplate):
         NIGNT_START = time(hour=20, minute=58)
         DAY_END = time(hour=15,minute=0)
 
+        trading_date = cur_date
         if cur_time > NIGNT_START:
             if bar.datetime.weekday() is 4:
                 trading_date = (bar.datetime + timedelta(days = 3)).date()
@@ -255,10 +256,6 @@ class BubugaoSignalFuture(CtaTemplate):
             if cur_time < time(hour=3, minute=0):
                 if bar.datetime.weekday() is 5:
                     trading_date = (bar.datetime + timedelta(days = 2)).date()
-                else:
-                    trading_date = cur_date
-            else:
-                trading_date = cur_date
 
         if trading_date != self.cur_trading_date:
             #print("#####%s:  %s, %s\n"%(bar.datetime, trading_date, self.cur_trading_date))

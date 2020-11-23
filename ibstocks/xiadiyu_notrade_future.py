@@ -219,6 +219,7 @@ class XiadySignalFuture(CtaTemplate):
         NIGNT_START = time(hour=20, minute=58)
         DAY_END = time(hour=15,minute=0)
 
+        trading_date = cur_date
         if cur_time > NIGNT_START:
             if bar.datetime.weekday() is 4:
                 trading_date = (bar.datetime + timedelta(days = 3)).date()
@@ -228,10 +229,6 @@ class XiadySignalFuture(CtaTemplate):
             if cur_time < time(hour=3, minute=0):
                 if bar.datetime.weekday() is 5:
                     trading_date = (bar.datetime + timedelta(days = 2)).date()
-                else:
-                    trading_date = cur_date
-            else:
-                trading_date = cur_date
 
         if trading_date != self.cur_trading_date:
             #print("#####%s:  %s, %s\n"%(bar.datetime, trading_date, self.cur_trading_date))
@@ -271,16 +268,16 @@ class XiadySignalFuture(CtaTemplate):
             df_30k = pd.DataFrame({'datetime':[bar.datetime], 'date':[trading_date], 'time':[cur_time], 'open':[mk['open'][-30]], \
                 'high':[mk['high'][-30:].max()], 'low':[mk['low'][-30:].min()], 'close':[mk['close'][-1]]})
             self.bars_30k = self.bars_30k.append(df_30k, ignore_index=True)
-            self.is_30k_positive = mk['close'][-1] >= self.bars_30k['close'][-10:].mean()
+            self.is_30k_negtive = mk['close'][-1] <= self.bars_30k['close'][-10:].mean()
             with open(self.signal_log, mode='a') as self.sh:
-                self.sh.write("%s: 30k, Price: %.2f; Positive: %d\n"%(mk["time"][-1], mk["close"][-1], self.is_30k_positive))
+                self.sh.write("%s: 30k, Price: %.2f; Positive: %d\n"%(mk["time"][-1], mk["close"][-1], self.is_30k_negtive))
 
         if num_bar%15 == 0 and cur_time > time(hour=14,minute=58) and cur_time < time(hour=15,minute=29):
             df_30k = pd.DataFrame({'datetime':[bar.datetime], 'date':[trading_date], 'time':[cur_time], 'open':[mk['open'][-15]], \
                 'high':[mk['high'][-15:].max()], 'low':[mk['low'][-15:].min()], 'close':[mk['close'][-1]]})
             self.bars_30k = self.bars_30k.append(df_30k, ignore_index=True)
             with open(self.signal_log, mode='a') as self.sh:
-                self.sh.write("%s: CLOSE_30k, Price: %.2f; Positive: %d\n"%(mk["time"][-1], mk["close"][-1], self.is_30k_positive))
+                self.sh.write("%s: CLOSE_30k, Price: %.2f; Positive: %d\n"%(mk["time"][-1], mk["close"][-1], self.is_30k_negtive))
 
         # 盘中重启，当日历史数据必须全部参与计算
         if not self.inited and self.yestoday_close > 999999:
@@ -427,7 +424,7 @@ class XiadySignalFuture(CtaTemplate):
                     if cur_time > time(hour=9,minute=50) and cur_time < time(hour=14,minute=10) \
                         and mk['close'][-1] > mk["vwap"][-1]*0.997 and day_CL > mk["vwap"][day_CL_index]*self.kongbeili_threshold:
                         #首次空止跌 | 二次空止跌 | 二次不创新低空止跌
-                        if (len(self.zz_prices) == 0 or median_adjust_low != self.zz_prices[-1][0]):
+                        if (len(self.zz_prices) == 0 or median_adjust_high != self.zz_prices[-1][0]):
                             self.zz_prices.append((median_adjust_high, num_bar))
                             if len(self.zz_prices) > 1 and (self.zz_prices[-1][1] - self.zz_prices[-2][1]) < 5:
                                 pass
