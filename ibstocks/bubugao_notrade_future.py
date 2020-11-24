@@ -118,7 +118,7 @@ class BubugaoSignalFuture(CtaTemplate):
         self.symbol = vt_symbol.split('.')[0]
         self.exchange = Exchange(vt_symbol.split(".")[1])
         self.symbol_jq = self.to_jq_symbol(self.symbol, self.exchange)
-        print(self.symbol_jq)
+
         self.signal_log = 'E://proj-futures/logs_vnpy/' + strategy_name + '.log'
         
         self.sh = None
@@ -144,22 +144,15 @@ class BubugaoSignalFuture(CtaTemplate):
         cur_dt = datetime.today()
         endDate = cur_dt.strftime('%Y-%m-%d %H:%M:%S')
 
-        #start = end - timedelta(days)
-        #self.today = str(self.cta_engine.today)[0:10]
-        print(cur_dt)
-
         # jqdata登陆
         jq.auth(bs.JqAccount["Username"], bs.JqAccount["Password"])
 
         initData = []
         trade_days_list = jq.get_trade_days(end_date=cur_dt, count=2)
-        #print(trade_days_list[0])
-        #print(endDate)
 
         # 获取前多日如数，按倒叙排序
         minute_df = jq.get_price(self.symbol_jq, start_date=trade_days_list[0], end_date=endDate, frequency='1m')
-        print(trade_days_list[0])
-        print(minute_df.tail(1))
+
         # 将数据转换为loadCsv中处理的数据类型，方便处理
         del minute_df['money']
         minute_df = minute_df.reset_index()
@@ -207,7 +200,6 @@ class BubugaoSignalFuture(CtaTemplate):
 
             initData.append(bar)
 
-        #print(bar, row['Open'])
         for bar in initData:
             self.on_bar(bar)
 
@@ -258,7 +250,6 @@ class BubugaoSignalFuture(CtaTemplate):
                     trading_date = (bar.datetime + timedelta(days = 2)).date()
 
         if trading_date != self.cur_trading_date:
-            #print("#####%s:  %s, %s\n"%(bar.datetime, trading_date, self.cur_trading_date))
             self.cur_trading_date = trading_date
 
         #TODOs: get cur_bar 345+ using history interface once network breakup or startup among trading
@@ -274,11 +265,16 @@ class BubugaoSignalFuture(CtaTemplate):
         num_bar = len(mk)
 
         #TODOs: get bar 30mins
-        if 'au' in self.signal_log:
+        if 'au' in self.symbol:
             if self.inited:
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: API_STABILITY_MONITOR: %f, %d, num_bar = %d\n"%(mk.index[-1], bar.close_price, bar.volume, num_bar))
             return
+
+        #if 'eb' in self.symbol:
+        #    with open(self.signal_log, mode='a') as self.sh:
+        #        self.sh.write("%s: API_STABILITY_MONITOR: %f, %d, num_bar = %d\n"%(mk.index[-1], bar.close_price, bar.volume, num_bar))
+
 
         if num_bar == 1:
             if len(mk_days) > 1:
@@ -394,11 +390,10 @@ class BubugaoSignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3a_1_xiaodi_30mins_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if self.email_note == 1 and self.inited:
-                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode3a_1_xiaodi_30mins_zhidie!"
+                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode3a_1_xiaodi_30mins_zhidie {self.symbol}!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
-                        #print(self.long_mode.split(' '))
                         if '3a_1' in self.long_mode.split(' ') and '3a_1' not in self.strategies \
                             and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=9,minute=50)):
                             #and self.is_30k_positive:
@@ -428,7 +423,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3b_duotiaozheng_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if self.email_note == 1 and self.inited:
-                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode3b_duotiaozheng_zhidie!"
+                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode3b_duotiaozheng_zhidie {self.symbol}!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
@@ -463,7 +458,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode3c_xiangduidi_30mins_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if self.email_note == 1 and self.inited:
-                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode3c_xiangduidi_30mins_zhidie!"
+                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode3c_xiangduidi_30mins_zhidie {self.symbol}!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
@@ -487,12 +482,24 @@ class BubugaoSignalFuture(CtaTemplate):
             # Signal：mode_4b 先空止跌震荡多
             # 空止跌做震荡多或反弹
             if (cur_time > time(hour=21,minute=30) or cur_time < time(hour=11,minute=0)) \
-                and (num_bar - day_CL_index == 29 or num_bar - day_CL_index == 17) \
+                and (num_bar - day_CL_index == 31 or num_bar - day_CL_index == 19) \
                 and day_CL < self.yestoday_close*0.994 and day_CL*self.duobeili_threshold < mk["vwap"][day_CL_index] \
                 and mk['close'][-num_bar + day_CL_index + 1:].max() < (day_CL + day_CH)*0.5 \
-                and day_CH < mk["open"][0]*1.005 and '4b' in self.long_mode.split(' '):
+                and day_CH < mk["open"][0]*1.005:
                 self.xiankong_zd_duo = True
-                if '4b' not in self.strategies:
+                if (len(self.zd_prices) == 0 or median_adjust_low != self.zd_prices[-1][0]):
+                    self.zd_prices.append((median_adjust_low, num_bar))
+                    if len(self.zd_prices) > 1 and (self.zd_prices[-1][1] - self.zd_prices[-2][1]) < 5:
+                        pass
+                    else:
+                        with open(self.signal_log, mode='a') as self.sh:
+                            self.sh.write("%s: NORMAL_SIGNAL_mode4b_kong_18or30mins_zhidie at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                        if self.email_note == 1 and self.inited:
+                            msg = f"{cur_time}: NORMAL_SIGNAL_mode4b_kong_18or30mins_zhidie {self.symbol}!"
+                            if not feishu:
+                                feishu = FeiShutalkChatbot()
+                            feishu.send_text(msg)
+                if '4b' in self.long_mode.split(' ') and '4b' not in self.strategies:
                     self.strategies['4b'] = mk["close"][-1]
                     if self.long_avg_price < 0.1:
                         self.long_avg_price = mk["close"][-1]
@@ -513,7 +520,7 @@ class BubugaoSignalFuture(CtaTemplate):
             # 11：05~11:20定点止损
             mk_l20 = mk[-20:]
             if cur_time > time(hour=11,minute=5) and cur_time < time(hour=11,minute=20) and self.long_avg_price >0.1 \
-                and len(mk_l20[mk_l20["close"] > mk_l20["vwap"]*0.998]) < 16:
+                and len(mk_l20[mk_l20["close"] > mk_l20["vwap"]*0.998]) < 16 and self.xiankong_zd_duo == False:
                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: SIGNAL_dingdian_zhishun_1110 at price %.2f with profit: %.1f\n"%(mk.index[-1], mk["close"][-1], res))
@@ -547,7 +554,7 @@ class BubugaoSignalFuture(CtaTemplate):
                         with open(self.signal_log, mode='a') as self.sh:
                             self.sh.write("%s: NORMAL_SIGNAL_jubu_zz %d minutes, at price %.2f\n"%(mk.index[-1], len(median_h_zz), mk["close"][-1]))
                         if self.email_note == 1 and self.inited:
-                            msg = f"{cur_time}: NORMAL_SIGNAL_jubu_zz 10 or 18mins!"
+                            msg = f"{cur_time}: NORMAL_SIGNAL_jubu_zz 10 or 18mins {self.symbol}!"
                             if not feishu:
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
@@ -559,12 +566,11 @@ class BubugaoSignalFuture(CtaTemplate):
                             with open(self.signal_log, mode='a') as self.sh:
                                 self.sh.write("%s: NORMAL_SIGNAL_zz: %d times, at price %.2f\n"%(mk.index[-1], self.zz_count, mk["close"][-1]))
                             if self.email_note == 1 and self.inited:
-                                msg = f"{cur_time}: NORMAL_SIGNAL_zz 30 mins!"
+                                msg = f"{cur_time}: NORMAL_SIGNAL_zz 30 mins {self.symbol}!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
-                            #print((mk["vwap"][-1] + median_CH )*0.5)
-                            #case1&2: close long while zz 1 or 2 times
+                        #case1&2: close long while zz 1 or 2 times
                         if self.zz_count >= self.zz_count_max \
                             and median_CH > self.yestoday_close*self.zy_threshold and mk["close"][-1] > (mk["vwap"][-1] + median_CH )*0.5:
                             if self.long_avg_price > 0.1:

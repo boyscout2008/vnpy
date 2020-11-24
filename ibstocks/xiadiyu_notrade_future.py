@@ -102,7 +102,7 @@ class XiadySignalFuture(CtaTemplate):
         self.symbol = vt_symbol.split('.')[0]
         self.exchange = Exchange(vt_symbol.split(".")[1])
         self.symbol_jq = self.to_jq_symbol(self.symbol, self.exchange)
-        print(self.symbol_jq)
+
         self.signal_log = 'E://proj-futures/logs_vnpy/' + strategy_name + '.log'
         
         self.sh = None
@@ -180,7 +180,6 @@ class XiadySignalFuture(CtaTemplate):
 
             initData.append(bar)
 
-        #print(bar, row['Open'])
         for bar in initData:
             self.on_bar(bar)
 
@@ -231,7 +230,6 @@ class XiadySignalFuture(CtaTemplate):
                     trading_date = (bar.datetime + timedelta(days = 2)).date()
 
         if trading_date != self.cur_trading_date:
-            #print("#####%s:  %s, %s\n"%(bar.datetime, trading_date, self.cur_trading_date))
             self.cur_trading_date = trading_date
 
         #TODOs: get cur_bar 345+ using history interface once network breakup or startup among trading
@@ -246,11 +244,16 @@ class XiadySignalFuture(CtaTemplate):
 
         num_bar = len(mk)
 
-        if 'au' in self.signal_log:
+        if 'au' in self.symbol:
             if self.inited:
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: API_STABILITY_MONITOR: %f, %d, num_bar = %d\n"%(mk.index[-1], bar.close_price, bar.volume, num_bar))
             return
+
+        #if 'ag' in self.symbol and num_bar >= 150:
+        #    with open(self.signal_log, mode='a') as self.sh:
+        #        self.sh.write("%s: API_STABILITY_MONITOR: %f, %d, num_bar = %d\n"%(mk.index[-1], bar.close_price, bar.volume, num_bar))
+
 
         if num_bar == 1:
             if len(mk_days) > 1:
@@ -364,7 +367,7 @@ class XiadySignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode_k3a_1_xiaogao_30mins_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if self.email_note == 1 and self.inited:
-                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3a_1_xiaogao_30mins_zhizhang!"
+                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3a_1_xiaogao_30mins_zhizhang {self.symbol}!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
@@ -397,7 +400,7 @@ class XiadySignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode_k3b_kongtiaozheng_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if self.email_note == 1 and self.inited:
-                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3b_kongtiaozheng_zhizhang!"
+                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3b_kongtiaozheng_zhizhang {self.symbol}!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
@@ -432,7 +435,7 @@ class XiadySignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode_k3c_xiangduigap_30mins_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if self.email_note == 1 and self.inited:
-                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3c_xiangduigap_30mins_zhizhang!"
+                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3c_xiangduigap_30mins_zhizhang {self.symbol}!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
@@ -455,12 +458,24 @@ class XiadySignalFuture(CtaTemplate):
 
             # Signal：mode_k4b 先多滞涨震荡空
             if (cur_time > time(hour=21,minute=30) or cur_time < time(hour=11,minute=0)) \
-                and (num_bar - day_CH_index == 29 or num_bar - day_CH_index == 17) \
+                and (num_bar - day_CH_index == 31 or num_bar - day_CH_index == 19) \
                 and day_CH > self.yestoday_close*1.006 and day_CH*self.kongbeili_threshold > mk["vwap"][day_CH_index] \
                 and mk['close'][-num_bar + day_CH_index + 1:].min() > (day_CL + day_CH)*0.5 \
-                and day_CL > mk["open"][0]*0.995 and 'k4b' in self.short_mode.split(' '):
+                and day_CL > mk["open"][0]*0.995:
                 self.xianduo_zz_kong = True
-                if 'k4b' not in self.strategies:
+                if (len(self.zz_prices) == 0 or median_adjust_high != self.zz_prices[-1][0]):
+                    self.zz_prices.append((median_adjust_high, num_bar))
+                    if len(self.zz_prices) > 1 and (self.zz_prices[-1][1] - self.zz_prices[-2][1]) < 5:
+                        pass
+                    else:
+                        with open(self.signal_log, mode='a') as self.sh:
+                            self.sh.write("%s: NORMAL_SIGNAL_mode_k4b_duo_18or30mins_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                        if self.email_note == 1 and self.inited:
+                            msg = f"{cur_time}: NORMAL_SIGNAL_mode_k4b_duo_18or30mins_zhizhang {self.symbol}!"
+                            if not feishu:
+                                feishu = FeiShutalkChatbot()
+                            feishu.send_text(msg)
+                if 'k4b' in self.short_mode.split(' ') and 'k4b' not in self.strategies:
                     self.strategies['k4b'] = mk["close"][-1]
                     if self.short_avg_price < 0.1:
                         self.short_avg_price = mk["close"][-1]
@@ -513,7 +528,7 @@ class XiadySignalFuture(CtaTemplate):
                         with open(self.signal_log, mode='a') as self.sh:
                             self.sh.write("%s: NORMAL_SIGNAL_jubu_zd %d minutes, at price %.2f\n"%(mk.index[-1], len(median_l_zd), mk["close"][-1]))
                         if self.email_note == 1 and self.inited:
-                            msg = f"{cur_time}: NORMAL_SIGNAL_jubu_zd 10 or 18mins!"
+                            msg = f"{cur_time}: NORMAL_SIGNAL_jubu_zd 10 or 18mins {self.symbol}!"
                             if not feishu:
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
@@ -525,12 +540,11 @@ class XiadySignalFuture(CtaTemplate):
                             with open(self.signal_log, mode='a') as self.sh:
                                 self.sh.write("%s: NORMAL_SIGNAL_zd: %d times, at price %.2f\n"%(mk.index[-1], self.zd_count, mk["close"][-1]))
                             if self.email_note == 1 and self.inited:
-                                msg = f"{cur_time}: NORMAL_SIGNAL_zd 30 mins!"
+                                msg = f"{cur_time}: NORMAL_SIGNAL_zd 30 mins {self.symbol}!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
-                            #print((mk["vwap"][-1] + median_CH )*0.5)
-                            #case1&2: close long while zz 1 or 2 times
+                        #case1&2: close long while zz 1 or 2 times
                         if self.zd_count >= self.zd_count_max \
                             and median_CL < self.yestoday_close*self.zy_threshold and mk["close"][-1] < (mk["vwap"][-1] + median_CL )*0.5:
                             if self.short_avg_price > 0.1:
