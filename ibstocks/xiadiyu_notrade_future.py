@@ -116,8 +116,10 @@ class XiadySignalFuture(CtaTemplate):
         """
         self.write_log("策略初始化")
 
-        #回测调用数据库
-        #self.load_bar(1) #载入1天的历史数据,实盘中用于中断和盘中启动
+        #回测调用数据库，email_note==0表示回测
+        if not self.email_note: 
+            self.load_bar(1) #载入1天的历史数据,实盘中用于中断和盘中启动
+            return
 
         #-----------------实盘调用jqdata初始化
         # 获取当前日期
