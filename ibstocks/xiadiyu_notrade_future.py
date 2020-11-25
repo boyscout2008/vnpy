@@ -305,7 +305,7 @@ class XiadySignalFuture(CtaTemplate):
                 self.short_avg_price = 0.0
                 self.strategies.clear()
                 if self.email_note and self.inited:
-                    msg = f"{cur_time}: weipan_pingcang_short with profit {res}!"
+                    msg = f"{cur_time}: weipan_pingcang_short {self.symbol} with profit {res}!"
                     if not feishu:
                         feishu = FeiShutalkChatbot()
                     feishu.send_text(msg)

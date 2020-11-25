@@ -326,7 +326,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 self.long_avg_price = 0.0
                 self.strategies.clear()
                 if self.email_note and self.inited:
-                    msg = f"{cur_time}: weipan_pingcang with profit {res}!"
+                    msg = f"{cur_time}: weipan_pingcang {self.symbol} with profit {res}!"
                     if not feishu:
                         feishu = FeiShutalkChatbot()
                     feishu.send_text(msg)
