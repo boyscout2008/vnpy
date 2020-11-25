@@ -203,6 +203,10 @@ class BubugaoSignalFuture(CtaTemplate):
         for bar in initData:
             self.on_bar(bar)
 
+        if 'au' in self.symbol:
+                with open(self.signal_log, mode='a') as self.sh:
+                    self.sh.write("%s: API_STABILITY_MONITOR: %f before inited\n"%(initData[-1].datetime, initData[-1].close_price))
+
         with open(self.signal_log, mode='a') as self.sh:
             self.sh.write("STRATIGY INITED\n")
 
@@ -268,7 +272,8 @@ class BubugaoSignalFuture(CtaTemplate):
         if 'au' in self.symbol:
             if self.inited:
                 with open(self.signal_log, mode='a') as self.sh:
-                    self.sh.write("%s: API_STABILITY_MONITOR: %f, %d, num_bar = %d\n"%(mk.index[-1], bar.close_price, bar.volume, num_bar))
+                    self.sh.write("%s: API_STABILITY_MONITOR: %f, actual time %s, num_bar = %d\n"%(mk.index[-1], \
+                        bar.close_price, datetime.now().time(), num_bar))
             return
 
         #if 'eb' in self.symbol:
