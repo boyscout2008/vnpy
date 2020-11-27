@@ -238,6 +238,11 @@ class XiadySignalFuture(CtaTemplate):
         if trading_date != self.cur_trading_date:
             self.cur_trading_date = trading_date
 
+        # The workaround: filter fake data at the startup of night or day trading
+        if self.inited and ((bar.datetime.time() > time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
+            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0))):
+            return
+            
         #TODOs: get cur_bar 345+ using history interface once network breakup or startup among trading
         # internal logic is independent although computation comsuming
         df_bar = pd.DataFrame({'datetime':[bar.datetime], 'tradingdate':[trading_date], 'time':[cur_time], 'open':[bar.open_price], \
@@ -379,7 +384,7 @@ class XiadySignalFuture(CtaTemplate):
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if 'k3a_1' in self.short_mode.split(' ') and 'k3a_1' not in self.strategies \
-                            and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=9,minute=50)):
+                            and (cur_time > time(hour=22,minute=10) or cur_time < time(hour=9,minute=50)):
                             #and self.is_30k_positive:
                             self.strategies['k3a_1'] = mk["close"][-1]
                             if self.short_avg_price < 0.1:
@@ -407,7 +412,7 @@ class XiadySignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode_k3b_kongtiaozheng_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if self.email_note == 1 and self.inited:
-                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3b_kongtiaozheng_zhizhang {self.symbol}!"
+                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3b_kongtiaozheng_zhizhang {self.symbol}, DCheck kongweijin, and its duo 2 bo!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
@@ -424,7 +429,7 @@ class XiadySignalFuture(CtaTemplate):
                                 self.sh.write("Double check whether it's weizhi zhendang_kong and already below zhongying or it. if so, just zhiying.\n")
                             # k3b 提醒
                             if self.email_note and self.inited:
-                                msg = f"{cur_time}: SIGNAL_mode_k3b_kongtiaozheng_zhizhang_kaicang {self.symbol}!"
+                                msg = f"{cur_time}: SIGNAL_mode_k3b_kongtiaozheng_zhizhang_kaicang {self.symbol}, DCheck kongweijin, and its duo 2 bo!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
@@ -442,7 +447,7 @@ class XiadySignalFuture(CtaTemplate):
                                 with open(self.signal_log, mode='a') as self.sh:
                                     self.sh.write("%s: NORMAL_SIGNAL_mode_k3c_xiangduigap_30mins_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 if self.email_note == 1 and self.inited:
-                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3c_xiangduigap_30mins_zhizhang {self.symbol}!"
+                                    msg = f"{cur_time}: NORMAL_SIGNAL_mode_k3c_xiangduigap_30mins_zhizhang {self.symbol}, DCheck its xiaogao 2 bo!!"
                                     if not feishu:
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
@@ -456,7 +461,7 @@ class XiadySignalFuture(CtaTemplate):
                                 self.sh.write("%s: SIGNAL_mode_k3c_xiangduigao_30mins_zhizhang_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                                 self.sh.write("Double check 30k is above MA.\n")
                             if self.email_note and self.inited:
-                                msg = f"{cur_time}: SIGNAL_mode_k3c_xiangduigao_30mins_zhizhang_kaicang {self.symbol}!"
+                                msg = f"{cur_time}: SIGNAL_mode_k3c_xiangduigao_30mins_zhizhang_kaicang {self.symbol}, DCheck its xiaogao 2 bo!!"
                                 if not feishu:
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
@@ -478,7 +483,7 @@ class XiadySignalFuture(CtaTemplate):
                         with open(self.signal_log, mode='a') as self.sh:
                             self.sh.write("%s: NORMAL_SIGNAL_mode_k4b_duo_18or30mins_zhizhang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         if self.email_note == 1 and self.inited:
-                            msg = f"{cur_time}: NORMAL_SIGNAL_mode_k4b_duo_18or30mins_zhizhang {self.symbol}!"
+                            msg = f"{cur_time}: NORMAL_SIGNAL_mode_k4b_duo_18or30mins_zhizhang {self.symbol}, DCheck duoyijin or its duo 2 bo!"
                             if not feishu:
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
@@ -492,7 +497,7 @@ class XiadySignalFuture(CtaTemplate):
                         self.sh.write("%s: SIGNAL_mode_k4b_duo_18or30mins_zhizhang_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         self.sh.write("Double check whether it's confirming zuli or it. if not, second duo_zz is a good choice for long.\n")
                     if self.email_note and self.inited:
-                        msg = f"{cur_time}: SIGNAL_mode_k4b_duo_18or30mins_zhizhang_kaicang {self.symbol}!"
+                        msg = f"{cur_time}: SIGNAL_mode_k4b_duo_18or30mins_zhizhang_kaicang {self.symbol}, DCheck duoyijin or its duo 2 bo!"
                         if not feishu:
                             feishu = FeiShutalkChatbot()
                         feishu.send_text(msg)
