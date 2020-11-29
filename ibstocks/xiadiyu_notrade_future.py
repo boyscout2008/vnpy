@@ -4,7 +4,7 @@ Intraday xiadiyu basic signals with trading option, corresponding parameters and
     1.1 close position at first zd( zd_count_max=1&below_zd_1=0)
     1.2 close position at second zd( zd_count_max=2&below_zd_1=0)
     1.3 close position x below first zd price(zd_count_max=1&>below_zd_1 = x)
-2. Other key PARAMs: kongbeili_threshold, dst_short_pos, zy_threshold
+2. Other key PARAMs: kongbeili_threshold, high_threshold, zy_threshold
     2.1 kongbeili_threshold - decide a valid kong trend, which is equity dependent.
 3. internal VARIABLE: zuliwei,zhichengwei - other ZY related parameters
 4. common internal VARIABLES(close prices): first20_low, first20_high, yestoday_close, (day_low, day_high), 
@@ -60,7 +60,7 @@ class XiadySignalFuture(CtaTemplate):
     zd_count_max = 1
     below_zd_1 = 0.0#1.001
     kongbeili_threshold = 0.994 # 针对各品种微调，目前铁矿5,7,9,11个点分别是0.994，0.992...
-    dst_short_pos = 0
+    high_threshold = 0.0 # 控制高空点位，针对那种大概率假突破再次寻求高位阻力的情况
     zy_threshold = 0.99 # zhongying
     short_mode = "k2a k3a_0 k3a_1 k3b k3c k4a k4b"
     cover_before_close = True
@@ -83,7 +83,7 @@ class XiadySignalFuture(CtaTemplate):
     SOUND_NOTICE_ORDER = "e://proj-futures/vnpy/ibstocks/notice_order.wav" # 5~10s
     SOUND_MANUAL_INTERUPT = "e://proj-futures/vnpy/ibstocks/manual_interupt.wav" # 10~20s
 
-    parameters = ["zd_count_max", "below_zd_1", "kongbeili_threshold", "dst_short_pos", "zy_threshold", "short_mode", "cover_before_close", "email_note"]
+    parameters = ["zd_count_max", "below_zd_1", "kongbeili_threshold", "high_threshold", "zy_threshold", "short_mode", "cover_before_close", "email_note"]
     variables = ["median_start", "zd_count", "zd_1_low"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -470,6 +470,7 @@ class XiadySignalFuture(CtaTemplate):
 
             # Signal：mode_k4b 先多滞涨震荡空
             if (cur_time > time(hour=21,minute=30) or cur_time < time(hour=11,minute=0)) \
+                and mk["close"][-1] > high_threshold \
                 and (num_bar - day_CH_index == 31 or num_bar - day_CH_index == 19) \
                 and day_CH > self.yestoday_close*1.006 and day_CH*self.kongbeili_threshold > mk["vwap"][day_CH_index] \
                 and mk['close'][-num_bar + day_CH_index + 1:].min() > (day_CL + day_CH)*0.5 \

@@ -4,7 +4,7 @@ Intraday bubugao basic signals with trading option, corresponding parameters and
     1.1 close position at first zz( zz_count_max=1&above_zz_1=0)
     1.2 close position at second zz( zz_count_max=2&above_zz_1=0)
     1.3 close position x above first zz price(zz_count_max=1&>above_zz_1 = x)
-2. Other key PARAMs: duobeili_threshold, dst_long_pos, zy_threshold
+2. Other key PARAMs: duobeili_threshold, low_threshold, zy_threshold
     2.1 duobeili_threshold - decide a valid long trend, which is equity dependent.
 3. internal VARIABLE: zuliwei - other ZY related parameters：
     2.1 the fourth ZY mode with zuliwei - 根据涨幅、日内波段和背离分时状况选择：+-1%以内，+3%，+5~10%止盈
@@ -64,8 +64,8 @@ class BubugaoSignalFuture(CtaTemplate):
     zz_count_max = 1
     above_zz_1 = 0.0#1.001
     duobeili_threshold = 1.006 # 针对各品种微调，目前铁矿5,7,9,11个点分别是1.006，1.008，1.01，1.012
-    dst_long_pos = 0
-    zy_threshold = 1.01 # zhongyang
+    low_threshold = 1000000.0 # 控制低多点位，针对那种大概率破位再次寻求低点支撑的情况
+    zy_threshold = 1.01 # zhongyang，控制止盈点位，亦可用于后续关键点位报警
     #long_mode = ['2a', '3a_0', '3a_1', '3b', '3c'] #omit 4a and 4b now
     long_mode = "2a 3a_0 3a_1 3b 3c"
     cover_before_close = True
@@ -98,7 +98,7 @@ class BubugaoSignalFuture(CtaTemplate):
     SOUND_NOTICE_ORDER = "e://proj-futures/vnpy/ibstocks/notice_order.wav" # 5~10s
     SOUND_MANUAL_INTERUPT = "e://proj-futures/vnpy/ibstocks/manual_interupt.wav" # 10~20s
 
-    parameters = ["zz_count_max", "above_zz_1", "duobeili_threshold", "dst_long_pos", "zy_threshold", "long_mode", "cover_before_close", "email_note"]
+    parameters = ["zz_count_max", "above_zz_1", "duobeili_threshold", "low_threshold", "zy_threshold", "long_mode", "cover_before_close", "email_note"]
     variables = ["median_start", "zz_count", "zz_1_high"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -494,6 +494,7 @@ class BubugaoSignalFuture(CtaTemplate):
             # Signal：mode_4b 先空止跌震荡多
             # 空止跌做震荡多或反弹
             if (cur_time > time(hour=21,minute=30) or cur_time < time(hour=11,minute=0)) \
+                and mk["close"][-1] < low_threshold \
                 and (num_bar - day_CL_index == 31 or num_bar - day_CL_index == 19) \
                 and day_CL < self.yestoday_close*0.994 and day_CL*self.duobeili_threshold < mk["vwap"][day_CL_index] \
                 and mk['close'][-num_bar + day_CL_index + 1:].max() < (day_CL + day_CH)*0.5 \
