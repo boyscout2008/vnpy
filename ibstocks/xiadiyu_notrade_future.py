@@ -221,6 +221,11 @@ class XiadySignalFuture(CtaTemplate):
         cur_time = bar.datetime.time()
         cur_date = bar.datetime.date()
 
+        # The workaround: filter fake data at the startup of night or day trading
+        if self.inited and ((bar.datetime.time() > time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
+            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0))):
+            return
+
         NIGNT_START = time(hour=20, minute=58)
         DAY_END = time(hour=15,minute=0)
 
@@ -237,12 +242,7 @@ class XiadySignalFuture(CtaTemplate):
 
         if trading_date != self.cur_trading_date:
             self.cur_trading_date = trading_date
-
-        # The workaround: filter fake data at the startup of night or day trading
-        if self.inited and ((bar.datetime.time() > time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
-            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0))):
-            return
-            
+                        
         #TODOs: get cur_bar 345+ using history interface once network breakup or startup among trading
         # internal logic is independent although computation comsuming
         df_bar = pd.DataFrame({'datetime':[bar.datetime], 'tradingdate':[trading_date], 'time':[cur_time], 'open':[bar.open_price], \
