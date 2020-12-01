@@ -69,6 +69,7 @@ class BubugaoSignalFuture(CtaTemplate):
     zy_threshold = 1.01 # zhongyang，控制止盈点位，亦可用于后续关键点位报警
     #long_mode = ['2a', '3a_0', '3a_1', '3b', '3c'] #omit 4a and 4b now
     long_mode = "2a 3a_0 3a_1 3b 3c"
+    dst_pos = 0
     cover_before_close = True
     email_note = 0
     #last_15mins_bar_index = 345-15 #铁矿+夜盘；日盘：225；白银沪镍等品种另算
@@ -80,7 +81,7 @@ class BubugaoSignalFuture(CtaTemplate):
     #day_close = time(hour=15,minute=0)
 
     #Variables
-    dest_long_pos = 1
+    dest_long_pos = dst_pos
     median_start = 1
     zz_count = 0
     zz_1_high = 0.0
@@ -100,7 +101,7 @@ class BubugaoSignalFuture(CtaTemplate):
     SOUND_NOTICE_ORDER = "e://proj-futures/vnpy/ibstocks/notice_order.wav" # 5~10s
     SOUND_MANUAL_INTERUPT = "e://proj-futures/vnpy/ibstocks/manual_interupt.wav" # 10~20s
 
-    parameters = ["zz_count_max", "above_zz_1", "duobeili_threshold", "low_threshold", "zy_threshold", "long_mode", "cover_before_close", "email_note"]
+    parameters = ["zz_count_max", "above_zz_1", "duobeili_threshold", "low_threshold", "zy_threshold", "long_mode", "dst_pos", "cover_before_close", "email_note"]
     variables = ["dest_long_pos", "median_start", "zz_count", "zz_1_high"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -294,7 +295,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 self.yestoday_close = mk_days['close'][-2]
                 remove_digits = str.maketrans('', '', digits)
                 symb = self.symbol.translate(remove_digits)
-                if symb in bs.FutureUnits: # 目标为4成仓，两次开仓为满仓
+                if symb in bs.FutureUnits and self.dest_long_pos == 1: # 目标为4成仓，两次开仓为满仓
                     self.dest_long_pos = int(100000/(bs.FutureUnits[symb]*self.yestoday_close*0.2)*0.4)
 
                 #开盘提醒
@@ -330,10 +331,10 @@ class BubugaoSignalFuture(CtaTemplate):
 
         # 尾盘强制平仓 TODO: 根据当前时间定是否是尾盘
         if cur_time > time(hour=14,minute=45) and cur_time <= time(hour=15,minute=0):
+            if self.pos > 0:
+                self.cancel_all()
+                self.sell(mk["close"][-1], self.pos, True)
             if  self.long_avg_price > 0.1 and self.cover_before_close:
-                if self.pos:
-                    self.cancel_all()
-                    self.sell(mk["close"][-1], self.pos)
                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: weipan_pingcang with profit %.1f at price %.2f\n"%(mk["time"][-1], res, mk["close"][-1]))
@@ -369,7 +370,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 and day_CL > min(self.yestoday_close, mk["open"][0])*0.994:
                 if (mk["close"] >= mk["vwap"]*0.999).all() and '2a' in self.long_mode.split(' '):
                     if '2a' not in self.strategies and self.is_30k_positive:
-                        if not self.pos:
+                        if self.dest_long_pos > 0 and not self.pos:
                             self.cancel_all()
                             self.buy(mk["close"][-1], self.dest_long_pos, True)
                         self.long_avg_price = mk["close"][-1]
@@ -384,7 +385,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             feishu.send_text(msg)
                 elif day_CL < day_CH*0.997 and len(mk[mk['close'] < mk["vwap"]])>10 \
                     and '3a_0' not in self.strategies and '3a_0' in self.long_mode.split(' '):
-                    if not self.pos:
+                    if self.dest_long_pos > 0 and not self.pos:
                         self.cancel_all()
                         self.buy(mk["close"][-1], self.dest_long_pos, True)
                     #and (self.is_30k_positive or (mk["close"][-10:]>self.bars_30k['close'][-1]).any()):
@@ -423,9 +424,9 @@ class BubugaoSignalFuture(CtaTemplate):
                                     feishu.send_text(msg)
                         if '3a_1' in self.long_mode.split(' ') and '3a_1' not in self.strategies \
                             and (cur_time > time(hour=22,minute=10) or cur_time < time(hour=9,minute=50)):
-                            if self.pos <= self.dest_long_pos:
+                            if self.dest_long_pos > 0 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
-                                self.buy(mk["close"][-1], self.dest_long_pos, True)
+                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
                             #and self.is_30k_positive:
                             self.strategies['3a_1'] = mk["close"][-1]
                             if self.long_avg_price < 0.1:
@@ -460,9 +461,9 @@ class BubugaoSignalFuture(CtaTemplate):
                         if '3b' in self.long_mode.split(' ') and '3b' not in self.strategies \
                             and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=14,minute=0)) \
                             and self.zz_count < self.zz_count_max and self.is_30k_positive:
-                            if self.pos <= self.dest_long_pos:
+                            if self.dest_long_pos > 0 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
-                                self.buy(mk["close"][-1], self.dest_long_pos, True)
+                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
                             self.strategies['3b'] = mk["close"][-1]
                             if self.long_avg_price < 0.1:
                                 self.long_avg_price = mk["close"][-1]
@@ -496,9 +497,9 @@ class BubugaoSignalFuture(CtaTemplate):
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if '3c' in self.long_mode.split(' ') and '3c' not in self.strategies:# and self.is_30k_positive:
-                            if self.pos <= self.dest_long_pos:
+                            if self.dest_long_pos > 0 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
-                                self.buy(mk["close"][-1], self.dest_long_pos, True)
+                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
                             self.strategies['3c'] = mk["close"][-1]
                             if self.long_avg_price < 0.1:
                                 self.long_avg_price = mk["close"][-1]
@@ -537,9 +538,9 @@ class BubugaoSignalFuture(CtaTemplate):
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)                  
                 if '4b' in self.long_mode.split(' ') and '4b' not in self.strategies:
-                    if self.pos <= self.dest_long_pos:
+                    if self.dest_long_pos > 0 and self.pos <= self.dest_long_pos:
                         self.cancel_all()
-                        self.buy(mk["close"][-1], self.dest_long_pos, True)
+                        self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
                     self.strategies['4b'] = mk["close"][-1]
                     if self.long_avg_price < 0.1:
                         self.long_avg_price = mk["close"][-1]
@@ -617,8 +618,8 @@ class BubugaoSignalFuture(CtaTemplate):
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
                         #case1&2: close long while zz 1 or 2 times
-                        if self.zz_count >= self.zz_count_max \
-                            and median_CH > self.yestoday_close*self.zy_threshold and mk["close"][-1] > (mk["vwap"][-1] + median_CH )*0.5:
+                        if self.zz_count >= self.zz_count_max and median_CH > self.yestoday_close*self.zy_threshold \
+                            and (mk["close"][-1] > (mk["vwap"][-1] + median_CH )*0.5 or (len(median_h_zz)>56 and mk["close"][-1]>mk["vwap"][-1])):
                             if self.pos > 0:
                                 self.cancel_all()
                                 self.sell(mk["close"][-1], self.pos, True)

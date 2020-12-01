@@ -64,6 +64,7 @@ class XiadySignalFuture(CtaTemplate):
     high_threshold = 0.0 # 控制高空点位，针对那种大概率假突破再次寻求高位阻力的情况
     zy_threshold = 0.99 # zhongying
     short_mode = "k2a k3a_0 k3a_1 k3b k3c k4a k4b"
+    dst_pos = 0
     cover_before_close = True
     email_note = 0
 
@@ -71,7 +72,7 @@ class XiadySignalFuture(CtaTemplate):
     xianduo_zz_kong = False
 
     #Variables
-    dest_short_pos = 1
+    dest_short_pos = dst_pos
     median_start = 1
     zd_count = 0
     zd_1_low = 0.0
@@ -85,7 +86,7 @@ class XiadySignalFuture(CtaTemplate):
     SOUND_NOTICE_ORDER = "e://proj-futures/vnpy/ibstocks/notice_order.wav" # 5~10s
     SOUND_MANUAL_INTERUPT = "e://proj-futures/vnpy/ibstocks/manual_interupt.wav" # 10~20s
 
-    parameters = ["zd_count_max", "below_zd_1", "kongbeili_threshold", "high_threshold", "zy_threshold", "short_mode", "cover_before_close", "email_note"]
+    parameters = ["zd_count_max", "below_zd_1", "kongbeili_threshold", "high_threshold", "zy_threshold", "short_mode", "dst_pos", "cover_before_close", "email_note"]
     variables = ["dest_short_pos", "median_start", "zd_count", "zd_1_low"]
 
     def __init__(self, cta_engine, strategy_name, vt_symbol, setting):
@@ -273,7 +274,7 @@ class XiadySignalFuture(CtaTemplate):
                 self.yestoday_close = mk_days['close'][-2]
                 remove_digits = str.maketrans('', '', digits)
                 symb = self.symbol.translate(remove_digits)
-                if symb in bs.FutureUnits: # 目标为4成仓，两次开仓为满仓
+                if symb in bs.FutureUnits and self.dest_long_pos == 1: # 目标为4成仓，两次开仓为满仓
                     self.dest_short_pos = int(100000/(bs.FutureUnits[symb]*self.yestoday_close*0.2)*0.4)
 
                 #开盘提醒
@@ -309,11 +310,10 @@ class XiadySignalFuture(CtaTemplate):
 
         # 尾盘强制平仓 TODO: 根据当前时间定是否是尾盘
         if cur_time > time(hour=14,minute=45) and cur_time <= time(hour=15,minute=0):
+            if self.pos < 0:
+                self.cancel_all()
+                self.cover(mk["close"][-1], abs(self.pos), True)
             if  self.short_avg_price > 0.1 and self.cover_before_close:
-                if self.pos < 0:
-                    self.cancel_all()
-                    self.cover(mk["close"][-1], self.pos, True)
-
                 res = (-mk["close"][-1]+self.short_avg_price)/self.short_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: weipan_pingcang_short with profit %.1f at price %.2f\n"%(mk["time"][-1], res, mk["close"][-1]))
@@ -348,7 +348,7 @@ class XiadySignalFuture(CtaTemplate):
                 and day_CH < max(self.yestoday_close, mk["open"][0])*1.006:
                 if (mk["close"] <= mk["vwap"]*1.001).all() and 'k2a' in self.short_mode.split(' '):
                     if 'k2a' not in self.strategies and self.is_30k_negtive:
-                        if not self.pos:
+                        if self.dest_short_pos > 0 and not self.pos:
                             self.cancel_all()
                             self.short(mk["close"][-1], self.dest_short_pos, True)
                         self.short_avg_price = mk["close"][-1]
@@ -364,7 +364,7 @@ class XiadySignalFuture(CtaTemplate):
                 elif day_CH > day_CL*1.003 and len(mk[mk['close'] > mk["vwap"]])>10 \
                     and 'k3a_0' not in self.strategies and 'k3a_0' in self.short_mode.split(' '):
                     #and (self.is_30k_positive or (mk["close"][-10:]>self.bars_30k['close'][-1]).any()):
-                    if not self.pos:
+                    if self.dest_short_pos > 0 and not self.pos:
                         self.cancel_all()
                         self.short(mk["close"][-1], self.dest_short_pos, True)
                     self.short_avg_price = mk["close"][-1]
@@ -401,9 +401,9 @@ class XiadySignalFuture(CtaTemplate):
                                     feishu.send_text(msg)
                         if 'k3a_1' in self.short_mode.split(' ') and 'k3a_1' not in self.strategies \
                             and (cur_time > time(hour=22,minute=10) or cur_time < time(hour=9,minute=50)):
-                            if abs(self.pos) <= self.dest_short_pos:
+                            if self.dest_short_pos > 0 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
-                                self.short(mk["close"][-1], self.dest_short_pos, True)
+                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
                             #and self.is_30k_positive:
                             self.strategies['k3a_1'] = mk["close"][-1]
                             if self.short_avg_price < 0.1:
@@ -438,9 +438,9 @@ class XiadySignalFuture(CtaTemplate):
                         if 'k3b' in self.short_mode.split(' ') and 'k3b' not in self.strategies \
                             and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=14,minute=0)) \
                             and self.zd_count < self.zd_count_max and self.is_30k_negtive:
-                            if abs(self.pos) <= self.dest_short_pos:
+                            if self.dest_short_pos > 0 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
-                                self.short(mk["close"][-1], self.dest_short_pos, True)
+                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
                             self.strategies['k3b'] = mk["close"][-1]
                             if self.short_avg_price < 0.1:
                                 self.short_avg_price = mk["close"][-1]
@@ -474,9 +474,9 @@ class XiadySignalFuture(CtaTemplate):
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if 'k3c' in self.short_mode.split(' ') and 'k3c' not in self.strategies:# and self.is_30k_positive:
-                            if abs(self.pos) <= self.dest_short_pos:
+                            if self.dest_short_pos > 0 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
-                                self.short(mk["close"][-1], self.dest_short_pos, True)
+                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
                             self.strategies['k3c'] = mk["close"][-1]
                             if self.short_avg_price < 0.1:
                                 self.short_avg_price = mk["close"][-1]
@@ -514,9 +514,9 @@ class XiadySignalFuture(CtaTemplate):
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
                 if 'k4b' in self.short_mode.split(' ') and 'k4b' not in self.strategies:
-                    if abs(self.pos) <= self.dest_short_pos:
+                    if self.dest_short_pos > 0 and abs(self.pos) <= self.dest_short_pos:
                         self.cancel_all()
-                        self.short(mk["close"][-1], self.dest_short_pos, True)
+                        self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
                     self.strategies['k4b'] = mk["close"][-1]
                     if self.short_avg_price < 0.1:
                         self.short_avg_price = mk["close"][-1]
@@ -592,8 +592,8 @@ class XiadySignalFuture(CtaTemplate):
                                     feishu = FeiShutalkChatbot()
                                 feishu.send_text(msg)
                         #case1&2: close long while zz 1 or 2 times
-                        if self.zd_count >= self.zd_count_max \
-                            and median_CL < self.yestoday_close*self.zy_threshold and mk["close"][-1] < (mk["vwap"][-1] + median_CL )*0.5:
+                        if self.zd_count >= self.zd_count_max and median_CL < self.yestoday_close*self.zy_threshold \
+                            and (mk["close"][-1] < (mk["vwap"][-1] + median_CL )*0.5 or (len(median_l_zd) > 56 and mk["close"][-1]< mk["vwap"][-1])):
                             if self.pos < 0:
                                 self.cancel_all()
                                 self.cover(mk["close"][-1], abs(self.pos), True)
