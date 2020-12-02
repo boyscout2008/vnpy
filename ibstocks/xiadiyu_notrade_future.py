@@ -275,7 +275,7 @@ class XiadySignalFuture(CtaTemplate):
                 self.yestoday_close = mk_days['close'][-2]
                 remove_digits = str.maketrans('', '', digits)
                 symb = self.symbol.translate(remove_digits)
-                if symb in bs.FutureUnits and self.dest_short_pos == 1: # 目标为4成仓，两次开仓为满仓
+                if symb in bs.FutureUnits and self.dest_short_pos == 0.5: # 目标为4成仓，两次开仓为满仓
                     self.dest_short_pos = int(100000/(bs.FutureUnits[symb]*self.yestoday_close*0.2)*0.4)
 
                 #开盘提醒
@@ -349,7 +349,7 @@ class XiadySignalFuture(CtaTemplate):
                 and day_CH < max(self.yestoday_close, mk["open"][0])*1.006:
                 if (mk["close"] <= mk["vwap"]*1.001).all() and 'k2a' in self.short_mode.split(' '):
                     if 'k2a' not in self.strategies and self.is_30k_negtive:
-                        if self.dest_short_pos > 0 and not self.pos:
+                        if self.dest_short_pos >= 1 and not self.pos:
                             self.cancel_all()
                             self.short(mk["close"][-1], self.dest_short_pos, True)
                         self.short_avg_price = mk["close"][-1]
@@ -365,7 +365,7 @@ class XiadySignalFuture(CtaTemplate):
                 elif day_CH > day_CL*1.003 and len(mk[mk['close'] > mk["vwap"]])>10 \
                     and 'k3a_0' not in self.strategies and 'k3a_0' in self.short_mode.split(' '):
                     #and (self.is_30k_positive or (mk["close"][-10:]>self.bars_30k['close'][-1]).any()):
-                    if self.dest_short_pos > 0 and not self.pos:
+                    if self.dest_short_pos >= 1 and not self.pos:
                         self.cancel_all()
                         self.short(mk["close"][-1], self.dest_short_pos, True)
                     self.short_avg_price = mk["close"][-1]
@@ -402,7 +402,7 @@ class XiadySignalFuture(CtaTemplate):
                                     feishu.send_text(msg)
                         if 'k3a_1' in self.short_mode.split(' ') and 'k3a_1' not in self.strategies \
                             and (cur_time > time(hour=22,minute=10) or cur_time < time(hour=9,minute=50)):
-                            if self.dest_short_pos > 0 and abs(self.pos) <= self.dest_short_pos:
+                            if self.dest_short_pos >= 1 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
                                 self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
                             #and self.is_30k_positive:
@@ -439,7 +439,7 @@ class XiadySignalFuture(CtaTemplate):
                         if 'k3b' in self.short_mode.split(' ') and 'k3b' not in self.strategies \
                             and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=14,minute=0)) \
                             and self.zd_count < self.zd_count_max and self.is_30k_negtive:
-                            if self.dest_short_pos > 0 and abs(self.pos) <= self.dest_short_pos:
+                            if self.dest_short_pos >= 1 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
                                 self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
                             self.strategies['k3b'] = mk["close"][-1]
@@ -475,7 +475,7 @@ class XiadySignalFuture(CtaTemplate):
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if 'k3c' in self.short_mode.split(' ') and 'k3c' not in self.strategies:# and self.is_30k_positive:
-                            if self.dest_short_pos > 0 and abs(self.pos) <= self.dest_short_pos:
+                            if self.dest_short_pos >= 1 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
                                 self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
                             self.strategies['k3c'] = mk["close"][-1]
@@ -515,7 +515,7 @@ class XiadySignalFuture(CtaTemplate):
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
                 if 'k4b' in self.short_mode.split(' ') and 'k4b' not in self.strategies:
-                    if self.dest_short_pos > 0 and abs(self.pos) <= self.dest_short_pos:
+                    if self.dest_short_pos >= 1 and abs(self.pos) <= self.dest_short_pos:
                         self.cancel_all()
                         self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
                     self.strategies['k4b'] = mk["close"][-1]

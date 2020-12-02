@@ -296,7 +296,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 self.yestoday_close = mk_days['close'][-2]
                 remove_digits = str.maketrans('', '', digits)
                 symb = self.symbol.translate(remove_digits)
-                if symb in bs.FutureUnits and self.dest_long_pos == 1: # 目标为4成仓，两次开仓为满仓
+                if symb in bs.FutureUnits and self.dest_long_pos == 0.5: # 目标为4成仓，两次开仓为满仓
                     self.dest_long_pos = int(100000/(bs.FutureUnits[symb]*self.yestoday_close*0.2)*0.4)
 
                 #开盘提醒
@@ -371,7 +371,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 and day_CL > min(self.yestoday_close, mk["open"][0])*0.994:
                 if (mk["close"] >= mk["vwap"]*0.999).all() and '2a' in self.long_mode.split(' '):
                     if '2a' not in self.strategies and self.is_30k_positive:
-                        if self.dest_long_pos > 0 and not self.pos:
+                        if self.dest_long_pos >= 1 and not self.pos:
                             self.cancel_all()
                             self.buy(mk["close"][-1], self.dest_long_pos, True)
                         self.long_avg_price = mk["close"][-1]
@@ -386,7 +386,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             feishu.send_text(msg)
                 elif day_CL < day_CH*0.997 and len(mk[mk['close'] < mk["vwap"]])>10 \
                     and '3a_0' not in self.strategies and '3a_0' in self.long_mode.split(' '):
-                    if self.dest_long_pos > 0 and not self.pos:
+                    if self.dest_long_pos >= 1 and not self.pos:
                         self.cancel_all()
                         self.buy(mk["close"][-1], self.dest_long_pos, True)
                     #and (self.is_30k_positive or (mk["close"][-10:]>self.bars_30k['close'][-1]).any()):
@@ -425,7 +425,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                     feishu.send_text(msg)
                         if '3a_1' in self.long_mode.split(' ') and '3a_1' not in self.strategies \
                             and (cur_time > time(hour=22,minute=10) or cur_time < time(hour=9,minute=50)):
-                            if self.dest_long_pos > 0 and self.pos <= self.dest_long_pos:
+                            if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
                                 self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
                             #and self.is_30k_positive:
@@ -462,7 +462,7 @@ class BubugaoSignalFuture(CtaTemplate):
                         if '3b' in self.long_mode.split(' ') and '3b' not in self.strategies \
                             and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=14,minute=0)) \
                             and self.zz_count < self.zz_count_max and self.is_30k_positive:
-                            if self.dest_long_pos > 0 and self.pos <= self.dest_long_pos:
+                            if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
                                 self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
                             self.strategies['3b'] = mk["close"][-1]
@@ -498,7 +498,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if '3c' in self.long_mode.split(' ') and '3c' not in self.strategies:# and self.is_30k_positive:
-                            if self.dest_long_pos > 0 and self.pos <= self.dest_long_pos:
+                            if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
                                 self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
                             self.strategies['3c'] = mk["close"][-1]
@@ -539,7 +539,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)                  
                 if '4b' in self.long_mode.split(' ') and '4b' not in self.strategies:
-                    if self.dest_long_pos > 0 and self.pos <= self.dest_long_pos:
+                    if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                         self.cancel_all()
                         self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
                     self.strategies['4b'] = mk["close"][-1]
