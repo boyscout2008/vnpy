@@ -248,7 +248,8 @@ class BubugaoSignalFuture(CtaTemplate):
         # internal logic is independent although computation comsuming
         # The workaround: filter fake data at the startup of night or day trading
         if self.inited and ((bar.datetime.time() > time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
-            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0))):
+            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0)) or 
+            bar.datetime.time() == time(hour=10, minute=15, second=0)):
             return
 
         NIGNT_START = time(hour=20, minute=58)

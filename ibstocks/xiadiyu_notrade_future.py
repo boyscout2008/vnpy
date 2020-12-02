@@ -226,7 +226,8 @@ class XiadySignalFuture(CtaTemplate):
 
         # The workaround: filter fake data at the startup of night or day trading
         if self.inited and ((bar.datetime.time() > time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
-            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0))):
+            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0)) or \
+            bar.datetime.time() == time(hour=10, minute=15, second=0)):
             return
 
         NIGNT_START = time(hour=20, minute=58)
@@ -274,7 +275,7 @@ class XiadySignalFuture(CtaTemplate):
                 self.yestoday_close = mk_days['close'][-2]
                 remove_digits = str.maketrans('', '', digits)
                 symb = self.symbol.translate(remove_digits)
-                if symb in bs.FutureUnits and self.dest_long_pos == 1: # 目标为4成仓，两次开仓为满仓
+                if symb in bs.FutureUnits and self.dest_short_pos == 1: # 目标为4成仓，两次开仓为满仓
                     self.dest_short_pos = int(100000/(bs.FutureUnits[symb]*self.yestoday_close*0.2)*0.4)
 
                 #开盘提醒
