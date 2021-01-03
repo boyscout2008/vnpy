@@ -247,9 +247,10 @@ class BubugaoSignalFuture(CtaTemplate):
         #TODOs: get cur_bar 345+ using history interface once network breakup or startup among trading
         # internal logic is independent although computation comsuming
         # The workaround: filter fake data at the startup of night or day trading
-        if self.inited and ((bar.datetime.time() > time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
-            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0)) or 
-            bar.datetime.time() == time(hour=10, minute=15, second=0)):
+        if self.inited and ((bar.datetime.time() >= time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
+            (bar.datetime.time() >= time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0)) or \
+            bar.datetime.time() == time(hour=10, minute=15, second=0) or \
+            (bar.datetime.time() >= time(hour=11, minute=30, second=0) and bar.datetime.time() < time(hour=13, minute=30, second=0))):
             return
 
         NIGNT_START = time(hour=20, minute=58)
@@ -279,6 +280,11 @@ class BubugaoSignalFuture(CtaTemplate):
 
         num_bar = len(mk)
 
+        #bar trace and debug
+        #if num_bar == 2 or num_bar ==467 or num_bar==122 or num_bar == 332 or num_bar==257:
+        #    with open(self.signal_log, mode='a') as self.sh:
+        #        self.sh.write("%s: FAKE_NUM_1_TRACE: %f, %d, num_bar = %d\n"%(mk.index[-2], mk['close'][-2], mk['volume'][-2], num_bar))
+
         #TODOs: get bar 30mins
         if 'au' in self.symbol:
             if self.inited:
@@ -286,10 +292,6 @@ class BubugaoSignalFuture(CtaTemplate):
                     self.sh.write("%s: API_STABILITY_MONITOR: %f, actual time %s, num_bar = %d\n"%(mk.index[-1], \
                         bar.close_price, datetime.now().time(), num_bar))
             return
-
-        #if 'eb' in self.symbol:
-        #    with open(self.signal_log, mode='a') as self.sh:
-        #        self.sh.write("%s: API_STABILITY_MONITOR: %f, %d, num_bar = %d\n"%(mk.index[-1], bar.close_price, bar.volume, num_bar))
 
         if num_bar == 1:
             if len(mk_days) > 1:
@@ -334,7 +336,7 @@ class BubugaoSignalFuture(CtaTemplate):
         if cur_time > time(hour=14,minute=45) and cur_time <= time(hour=15,minute=0):
             if self.pos > 0:
                 self.cancel_all()
-                self.sell(mk["close"][-1], self.pos, True)
+                self.sell(mk["close"][-1], self.pos)
             if  self.long_avg_price > 0.1 and self.cover_before_close:
                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
@@ -373,7 +375,7 @@ class BubugaoSignalFuture(CtaTemplate):
                     if '2a' not in self.strategies and self.is_30k_positive:
                         if self.dest_long_pos >= 1 and not self.pos:
                             self.cancel_all()
-                            self.buy(mk["close"][-1], self.dest_long_pos, True)
+                            self.buy(mk["close"][-1], self.dest_long_pos)
                         self.long_avg_price = mk["close"][-1]
                         self.strategies['2a'] = mk["close"][-1]
                         with open(self.signal_log, mode='a') as self.sh:
@@ -388,7 +390,7 @@ class BubugaoSignalFuture(CtaTemplate):
                     and '3a_0' not in self.strategies and '3a_0' in self.long_mode.split(' '):
                     if self.dest_long_pos >= 1 and not self.pos:
                         self.cancel_all()
-                        self.buy(mk["close"][-1], self.dest_long_pos, True)
+                        self.buy(mk["close"][-1], self.dest_long_pos)
                     #and (self.is_30k_positive or (mk["close"][-10:]>self.bars_30k['close'][-1]).any()):
                     self.long_avg_price = mk["close"][-1]
                     self.strategies['3a_0'] = mk["close"][-1]
@@ -427,7 +429,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             and (cur_time > time(hour=22,minute=10) or cur_time < time(hour=9,minute=50)):
                             if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
-                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
+                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos)
                             #and self.is_30k_positive:
                             self.strategies['3a_1'] = mk["close"][-1]
                             if self.long_avg_price < 0.1:
@@ -464,7 +466,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             and self.zz_count < self.zz_count_max and self.is_30k_positive:
                             if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
-                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
+                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos)
                             self.strategies['3b'] = mk["close"][-1]
                             if self.long_avg_price < 0.1:
                                 self.long_avg_price = mk["close"][-1]
@@ -500,7 +502,7 @@ class BubugaoSignalFuture(CtaTemplate):
                         if '3c' in self.long_mode.split(' ') and '3c' not in self.strategies:# and self.is_30k_positive:
                             if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
-                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
+                                self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos)
                             self.strategies['3c'] = mk["close"][-1]
                             if self.long_avg_price < 0.1:
                                 self.long_avg_price = mk["close"][-1]
@@ -538,20 +540,20 @@ class BubugaoSignalFuture(CtaTemplate):
                             if not feishu:
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)                  
-                if '4b' in self.long_mode.split(' ') and '4b' not in self.strategies:
+                if '4b' in self.long_mode.split(' ') and '4b' not in self.strategies and num_bar - day_CL_index > 25:
                     if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                         self.cancel_all()
-                        self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos, True)
+                        self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos)
                     self.strategies['4b'] = mk["close"][-1]
                     if self.long_avg_price < 0.1:
                         self.long_avg_price = mk["close"][-1]
                     else:
                         self.long_avg_price = sum(self.strategies.values())/len(self.strategies)
                     with open(self.signal_log, mode='a') as self.sh:
-                        self.sh.write("%s: SIGNAL_mode4b_kong_18or30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                        self.sh.write("%s: SIGNAL_mode4b_kong_30mins_zhidie_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         self.sh.write("Double check whether it's confirming zhicheng or it. if so, second kong_zd is a good choice for long.\n")
                     if self.email_note and self.inited:
-                        msg = f"{cur_time}: SIGNAL_mode4b_kong_18or30mins_zhidie_kaicang {self.symbol}, DCheck its kongyijin or kong 2 bo!"
+                        msg = f"{cur_time}: SIGNAL_mode4b_kong_30mins_zhidie_kaicang {self.symbol}, DCheck its kongyijin or kong 2 bo!"
                         if not feishu:
                             feishu = FeiShutalkChatbot()
                         feishu.send_text(msg)
@@ -565,7 +567,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 and len(mk_l20[mk_l20["close"] > mk_l20["vwap"]*0.998]) < 16 and self.xiankong_zd_duo == False:
                 if self.pos > 0:
                     self.cancel_all()
-                    self.sell(mk["close"][-1], self.pos, True)
+                    self.sell(mk["close"][-1], self.pos)
                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: SIGNAL_dingdian_zhishun_1110 at price %.2f with profit: %.1f\n"%(mk.index[-1], mk["close"][-1], res))
@@ -583,7 +585,7 @@ class BubugaoSignalFuture(CtaTemplate):
                 and (mk_l20["close"][-5:] < mk_l20["close"][:-5].max()*1.001).all():
                 if self.pos > 0:
                     self.cancel_all()
-                    self.sell(mk["close"][-1], self.pos, True)
+                    self.sell(mk["close"][-1], self.pos)
                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: SIGNAL_changqi_piankong_fantan_zhishun at price %.2f with profit %.1f\n"%(mk.index[-1], mk["close"][-1], res))
@@ -623,7 +625,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             and (mk["close"][-1] > (mk["vwap"][-1] + median_CH )*0.5 or (len(median_h_zz)>56 and mk["close"][-1]>mk["vwap"][-1])):
                             if self.pos > 0:
                                 self.cancel_all()
-                                self.sell(mk["close"][-1], self.pos, True)
+                                self.sell(mk["close"][-1], self.pos)
                             if self.long_avg_price > 0.1:
                                 res = (mk["close"][-1]-self.long_avg_price)/self.long_avg_price*100
                                 with open(self.signal_log, mode='a') as self.sh:

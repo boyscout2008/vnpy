@@ -225,9 +225,10 @@ class XiadySignalFuture(CtaTemplate):
         cur_date = bar.datetime.date()
 
         # The workaround: filter fake data at the startup of night or day trading
-        if self.inited and ((bar.datetime.time() > time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
-            (bar.datetime.time() > time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0)) or \
-            bar.datetime.time() == time(hour=10, minute=15, second=0)):
+        if self.inited and ((bar.datetime.time() >= time(hour=15, minute=0) and bar.datetime.time() < time(hour=21, minute=0)) or \
+            (bar.datetime.time() >= time(hour=2, minute=30) and bar.datetime.time() < time(hour=9, minute=0)) or \
+            bar.datetime.time() == time(hour=10, minute=15, second=0) or \
+            (bar.datetime.time() >= time(hour=11, minute=30, second=0) and bar.datetime.time() < time(hour=13, minute=30, second=0))):
             return
 
         NIGNT_START = time(hour=20, minute=58)
@@ -313,7 +314,7 @@ class XiadySignalFuture(CtaTemplate):
         if cur_time > time(hour=14,minute=45) and cur_time <= time(hour=15,minute=0):
             if self.pos < 0:
                 self.cancel_all()
-                self.cover(mk["close"][-1], abs(self.pos), True)
+                self.cover(mk["close"][-1], abs(self.pos))
             if  self.short_avg_price > 0.1 and self.cover_before_close:
                 res = (-mk["close"][-1]+self.short_avg_price)/self.short_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
@@ -351,7 +352,7 @@ class XiadySignalFuture(CtaTemplate):
                     if 'k2a' not in self.strategies and self.is_30k_negtive:
                         if self.dest_short_pos >= 1 and not self.pos:
                             self.cancel_all()
-                            self.short(mk["close"][-1], self.dest_short_pos, True)
+                            self.short(mk["close"][-1], self.dest_short_pos)
                         self.short_avg_price = mk["close"][-1]
                         self.strategies['k2a'] = mk["close"][-1]
                         with open(self.signal_log, mode='a') as self.sh:
@@ -367,7 +368,7 @@ class XiadySignalFuture(CtaTemplate):
                     #and (self.is_30k_positive or (mk["close"][-10:]>self.bars_30k['close'][-1]).any()):
                     if self.dest_short_pos >= 1 and not self.pos:
                         self.cancel_all()
-                        self.short(mk["close"][-1], self.dest_short_pos, True)
+                        self.short(mk["close"][-1], self.dest_short_pos)
                     self.short_avg_price = mk["close"][-1]
                     self.strategies['k3a_0'] = mk["close"][-1]
                     with open(self.signal_log, mode='a') as self.sh:
@@ -404,7 +405,7 @@ class XiadySignalFuture(CtaTemplate):
                             and (cur_time > time(hour=22,minute=10) or cur_time < time(hour=9,minute=50)):
                             if self.dest_short_pos >= 1 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
-                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
+                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos)
                             #and self.is_30k_positive:
                             self.strategies['k3a_1'] = mk["close"][-1]
                             if self.short_avg_price < 0.1:
@@ -441,7 +442,7 @@ class XiadySignalFuture(CtaTemplate):
                             and self.zd_count < self.zd_count_max and self.is_30k_negtive:
                             if self.dest_short_pos >= 1 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
-                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
+                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos)
                             self.strategies['k3b'] = mk["close"][-1]
                             if self.short_avg_price < 0.1:
                                 self.short_avg_price = mk["close"][-1]
@@ -477,7 +478,7 @@ class XiadySignalFuture(CtaTemplate):
                         if 'k3c' in self.short_mode.split(' ') and 'k3c' not in self.strategies:# and self.is_30k_positive:
                             if self.dest_short_pos >= 1 and abs(self.pos) <= self.dest_short_pos:
                                 self.cancel_all()
-                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
+                                self.short(mk["close"][-1], self.dest_short_pos*2+self.pos)
                             self.strategies['k3c'] = mk["close"][-1]
                             if self.short_avg_price < 0.1:
                                 self.short_avg_price = mk["close"][-1]
@@ -514,20 +515,20 @@ class XiadySignalFuture(CtaTemplate):
                             if not feishu:
                                 feishu = FeiShutalkChatbot()
                             feishu.send_text(msg)
-                if 'k4b' in self.short_mode.split(' ') and 'k4b' not in self.strategies:
+                if 'k4b' in self.short_mode.split(' ') and 'k4b' not in self.strategies and num_bar - day_CL_index > 25:
                     if self.dest_short_pos >= 1 and abs(self.pos) <= self.dest_short_pos:
                         self.cancel_all()
-                        self.short(mk["close"][-1], self.dest_short_pos*2+self.pos, True)
+                        self.short(mk["close"][-1], self.dest_short_pos*2+self.pos)
                     self.strategies['k4b'] = mk["close"][-1]
                     if self.short_avg_price < 0.1:
                         self.short_avg_price = mk["close"][-1]
                     else:
                         self.short_avg_price = sum(self.strategies.values())/len(self.strategies)
                     with open(self.signal_log, mode='a') as self.sh:
-                        self.sh.write("%s: SIGNAL_mode_k4b_duo_18or30mins_zhizhang_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
+                        self.sh.write("%s: SIGNAL_mode_k4b_duo_30mins_zhizhang_kaicang at price %.2f\n"%(mk.index[-1], mk["close"][-1]))
                         self.sh.write("Double check whether it's confirming zuli or it. if not, second duo_zz is a good choice for long.\n")
                     if self.email_note and self.inited:
-                        msg = f"{cur_time}: SIGNAL_mode_k4b_duo_18or30mins_zhizhang_kaicang {self.symbol}, DCheck duoyijin or its duo 2 bo!"
+                        msg = f"{cur_time}: SIGNAL_mode_k4b_duo_30mins_zhizhang_kaicang {self.symbol}, DCheck duoyijin or its duo 2 bo!"
                         if not feishu:
                             feishu = FeiShutalkChatbot()
                         feishu.send_text(msg)
@@ -539,7 +540,7 @@ class XiadySignalFuture(CtaTemplate):
                 and len(mk_l20[mk_l20["close"] < mk_l20["vwap"]*1.001]) < 16:
                 if self.pos < 0:
                     self.cancel_all()
-                    self.cover(mk["close"][-1], abs(self.pos), True)
+                    self.cover(mk["close"][-1], abs(self.pos))
                 res = (-mk["close"][-1]+self.short_avg_price)/self.short_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: SIGNAL_dingdian_zhishun_short_1110 at price %.2f with profit: %.1f\n"%(mk.index[-1], mk["close"][-1], res))
@@ -557,7 +558,7 @@ class XiadySignalFuture(CtaTemplate):
                 and (mk_l20["close"][-5:] > mk_l20["close"][:-5].min()*0.999).all():
                 if self.pos < 0:
                     self.cancel_all()
-                    self.cover(mk["close"][-1], abs(self.pos), True)
+                    self.cover(mk["close"][-1], abs(self.pos))
                 res = (-mk["close"][-1]+self.short_avg_price)/self.short_avg_price*100
                 with open(self.signal_log, mode='a') as self.sh:
                     self.sh.write("%s: SIGNAL_changqi_pianduo_xiachuo_zhishun at price %.2f with profit %.1f\n"%(mk.index[-1], mk["close"][-1], res))
@@ -597,7 +598,7 @@ class XiadySignalFuture(CtaTemplate):
                             and (mk["close"][-1] < (mk["vwap"][-1] + median_CL )*0.5 or (len(median_l_zd) > 56 and mk["close"][-1]< mk["vwap"][-1])):
                             if self.pos < 0:
                                 self.cancel_all()
-                                self.cover(mk["close"][-1], abs(self.pos), True)
+                                self.cover(mk["close"][-1], abs(self.pos))
                             if self.short_avg_price > 0.1:
                                 res = (-mk["close"][-1]+self.short_avg_price)/self.short_avg_price*100
                                 with open(self.signal_log, mode='a') as self.sh:
