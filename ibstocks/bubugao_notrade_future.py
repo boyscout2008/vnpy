@@ -426,7 +426,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if '3a_1' in self.long_mode.split(' ') and '3a_1' not in self.strategies \
-                            and (cur_time > time(hour=22,minute=10) or cur_time < time(hour=9,minute=50)):
+                            and (cur_time > time(hour=22,minute=29) or cur_time < time(hour=9,minute=10)):
                             if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
                                 self.buy(mk["close"][-1], self.dest_long_pos*2 - self.pos)
@@ -462,7 +462,7 @@ class BubugaoSignalFuture(CtaTemplate):
                                         feishu = FeiShutalkChatbot()
                                     feishu.send_text(msg)
                         if '3b' in self.long_mode.split(' ') and '3b' not in self.strategies \
-                            and (cur_time > time(hour=21,minute=30) or cur_time < time(hour=14,minute=0)) \
+                            and (cur_time > time(hour=22,minute=29) or cur_time < time(hour=14,minute=20)) \
                             and self.zz_count < self.zz_count_max and self.is_30k_positive:
                             if self.dest_long_pos >= 1 and self.pos <= self.dest_long_pos:
                                 self.cancel_all()
@@ -484,7 +484,7 @@ class BubugaoSignalFuture(CtaTemplate):
                             #winsound.PlaySound(self.SOUND_MANUAL_INTERUPT, winsound.SND_FILENAME)
 
                     # 根据时间判定3c机会:类似3a类机会，只是中间可能是第二波小空止跌后多信号(考虑第二波小空不创新低的情况)
-                    if cur_time > time(hour=9,minute=50) and cur_time < time(hour=14,minute=10) \
+                    if cur_time > time(hour=9,minute=40) and cur_time < time(hour=11,minute=20) \
                         and mk['close'][-1] < mk["vwap"][-1]*1.003 and day_CH < mk["vwap"][day_CH_index]*self.duobeili_threshold:
                         #首次空止跌 | 二次空止跌 | 二次不创新低空止跌
                         if (len(self.zd_prices) == 0 or median_adjust_low != self.zd_prices[-1][0]):
